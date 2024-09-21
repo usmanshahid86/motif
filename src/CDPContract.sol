@@ -13,10 +13,16 @@ contract CDPContract is ERC20, Ownable {
     event StablecoinBurned(address indexed user, uint256 amount);
     event CollateralLiquidated(address indexed user, uint256 amount);
 
-    constructor(address _bod) ERC20("CDP Stablecoin", "CDPS") Ownable(msg.sender) {
+    constructor(address _bod) ERC20("BITC Stablecoin", "BITC") Ownable(msg.sender) {
         bod = Bod(_bod);
         require(bod.bodOwner() == msg.sender, "CDPContract: Caller is not the Bod owner");
-        //bod.lock(); // Lock the Bod
+    }
+
+    bool private bodLocked;
+
+    modifier onlyWhenBodLocked() {
+        require(bodLocked, "CDPContract: Bod must be locked");
+        _;
     }
 
     function mintStablecoin(uint256 amount) external onlyOwner {
@@ -48,5 +54,10 @@ contract CDPContract is ERC20, Ownable {
     function unlockBod() external onlyOwner {
         require(totalSupply() == 0, "CDPContract: Cannot unlock while stablecoins are in circulation");
         bod.unlock();
+    }
+
+    function lockBod() external onlyOwner {
+        bod.lock();
+        bodLocked = true;
     }
 }

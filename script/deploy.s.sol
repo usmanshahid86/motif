@@ -24,6 +24,12 @@ contract DeployScript is Script {
         // Deploy the CDPContract
         CDPContract cdpContract = new CDPContract(address(bod));
 
+        // Set the CDPContract as the Bod owner
+        bod.setBodOwner(address(cdpContract));
+
+        // Lock the Bod
+        cdpContract.lockBod();
+
         console.log("Bod deployed at:", address(bod));
         console.log("BodManager deployed at:", address(bodManager));
         console.log("CDPContract deployed at:", address(cdpContract));
