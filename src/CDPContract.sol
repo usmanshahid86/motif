@@ -13,10 +13,10 @@ contract CDPContract is ERC20, Ownable {
     event StablecoinBurned(address indexed user, uint256 amount);
     event CollateralLiquidated(address indexed user, uint256 amount);
 
-    constructor(address _bod) ERC20("CDP Stablecoin", "CDPS") {
+    constructor(address _bod) ERC20("CDP Stablecoin", "CDPS") Ownable(msg.sender) {
         bod = Bod(_bod);
         require(bod.bodOwner() == msg.sender, "CDPContract: Caller is not the Bod owner");
-        bod.lock(); // Lock the Bod
+        //bod.lock(); // Lock the Bod
     }
 
     function mintStablecoin(uint256 amount) external onlyOwner {

@@ -17,7 +17,7 @@ contract BodTest is Test {
         bod.initialize(owner, bodManager);
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(bod.bodOwner(), owner, "Bod owner should be set correctly");
         assertEq(bod.bodManager(), bodManager, "Bod manager should be set correctly");
     }

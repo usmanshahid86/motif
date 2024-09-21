@@ -1,9 +1,9 @@
 pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/utils/Create2.sol";
-import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
-import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "./Bod.sol";
 
 contract BodManager is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
@@ -13,7 +13,7 @@ contract BodManager is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     event BodCreated(address indexed owner, address bodAddress);
 
     function initialize(address initialOwner) external initializer {
-        __Ownable_init();
+        __Ownable_init(initialOwner);
         __ReentrancyGuard_init();
         transferOwnership(initialOwner);
     }
