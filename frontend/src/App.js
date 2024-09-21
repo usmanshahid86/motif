@@ -89,32 +89,32 @@ function App() {
       setCdpAddress(address);
       console.log("CDP deployed at:", address);
 
-      // Check new Bod owner
-      const newBodOwner = await bod.bodOwner();
-      console.log("New Bod owner:", newBodOwner);
+      // // Check new Bod owner
+      // const newBodOwner = await bod.bodOwner();
+      // console.log("New Bod owner:", newBodOwner);
 
-      // Lock Bod
-      console.log("Locking Bod...");
+      // // Lock Bod
+      // console.log("Locking Bod...");
       const cdpContract = new ethers.Contract(address, CDPContractABI.abi, signer);
-      const isLocked = await bod.isLocked();
-      console.log("Is Bod locked?", isLocked);
-      if (!isLocked) {
-        let tx = await cdpContract.lockBod();
-        await tx.wait();
-        console.log("Bod locked");
-      } else {
-        console.log("Bod is already locked");
-      }
+      // const isLocked = await bod.isLocked();
+      // console.log("Is Bod locked?", isLocked);
+      // if (!isLocked) {
+      //   let tx = await cdpContract.lockBod();
+      //   await tx.wait();
+      //   console.log("Bod locked");
+      // } else {
+      //   console.log("Bod is already locked");
+      // }
 
       // Mint stablecoin
-      console.log("Minting stablecoin...");
-      const lockedBitcoin = await bod.getLockedBitcoin();
-      console.log("Locked Bitcoin:", lockedBitcoin.toString());
-      const collateralRatio = await cdpContract.COLLATERAL_RATIO();
-      console.log("Collateral Ratio:", collateralRatio.toString());
-      const maxStablecoin = lockedBitcoin.mul(100).div(collateralRatio);
-      console.log("Max Stablecoin:", maxStablecoin.toString());
-      let tx = await cdpContract.mintStablecoin(maxStablecoin);
+      // console.log("Minting stablecoin...");
+      // const lockedBitcoin = await bod.getLockedBitcoin();
+      // console.log("Locked Bitcoin:", lockedBitcoin.toString());
+      // const collateralRatio = await cdpContract.COLLATERAL_RATIO();
+      // console.log("Collateral Ratio:", collateralRatio.toString());
+      // const maxStablecoin = lockedBitcoin.mul(100).div(collateralRatio);
+      // console.log("Max Stablecoin:", maxStablecoin.toString());
+      let tx = await cdpContract.mintStablecoin(1000000000000000);
       await tx.wait();
       console.log("Stablecoin minted");
     } catch (error) {
