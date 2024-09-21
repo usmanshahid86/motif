@@ -7,12 +7,11 @@ import CDPContractABI from './abis/CDPContract.sol/CDPContract.json';
 function App() {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [bodManagerAddress, setBodManagerAddress] = useState(() => localStorage.getItem('bodManagerAddress') || '');
-  const [bodAddress, setBodAddress] = useState(() => localStorage.getItem('bodAddress') || '');
-  const [cdpAddress, setCdpAddress] = useState(() => localStorage.getItem('cdpAddress') || '');
-  const [bitcoinAddress, setBitcoinAddress] = useState('');
+  const [bodManagerAddress, setBodManagerAddress] = useState('');
+  const [bodAddress, setBodAddress] = useState('');
+  const [cdpAddress, setCdpAddress] = useState('');
+  const [bitcoinAddress, setBitcoinAddress] = useState('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
   const [lockedBitcoin, setLockedBitcoin] = useState('0');
-  const [isLocked, setIsLocked] = useState(false);
   const [stablecoinBalance, setStablecoinBalance] = useState('0');
 
   useEffect(() => {
@@ -34,23 +33,7 @@ function App() {
     initializeEthers();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('bodManagerAddress', bodManagerAddress);
-  }, [bodManagerAddress]);
-
-  useEffect(() => {
-    localStorage.setItem('bodAddress', bodAddress);
-  }, [bodAddress]);
-
-  useEffect(() => {
-    localStorage.setItem('cdpAddress', cdpAddress);
-  }, [cdpAddress]);
-
   const deployBodManager = async () => {
-    if (bodManagerAddress) {
-      console.log("BodManager already deployed at:", bodManagerAddress);
-      return;
-    }
     try {
       await provider.send("eth_requestAccounts", []);
       const BodManagerFactory = new ethers.ContractFactory(BodManagerABI.abi, BodManagerABI.bytecode, signer);
@@ -58,78 +41,154 @@ function App() {
       await bodManager.waitForDeployment();
       const address = await bodManager.getAddress();
       setBodManagerAddress(address);
+      console.log("BodManager deployed at:", address);
     } catch (error) {
       console.error("Error deploying BodManager:", error);
     }
   };
 
-  const createBod = async () => {
-    if (bodAddress) {
-      console.log("Bod already created at:", bodAddress);
-      return;
+  const deployBod = async () => {
+    try {
+      const bodManager = new ethers.Contract(bodManagerAddress, BodManagerABI.abi, signer);
+      const tx = await bodManager.createBod(bitcoinAddress);
+      await tx.wait();
+      const userAddress = await signer.getAddress();
+      const newBodAddress = await bodManager.getBod(userAddress);
+      setBodAddress(newBodAddress);
+      console.log("Bod deployed at:", newBodAddress);
+    } catch (error) {
+      console.error("Error deploying Bod:", error);
     }
-    const bodManager = new ethers.Contract(bodManagerAddress, BodManagerABI.abi, signer);
-    const tx = await bodManager.createBod(bitcoinAddress);
-    await tx.wait();
-    const userAddress = await signer.getAddress();
-    const newBodAddress = await bodManager.getBod(userAddress);
-    setBodAddress(newBodAddress);
-  };
-
-  const getBodAddress = async () => {
-    const bodManager = new ethers.Contract(bodManagerAddress, BodManagerABI.abi, signer);
-    const userAddress = await signer.getAddress();
-    const newBodAddress = await bodManager.getBod(userAddress);
-    setBodAddress(newBodAddress);
-  };
-
-  const lockBitcoin = async () => {
-    const bodManager = new ethers.Contract(bodManagerAddress, BodManagerABI.abi, signer);
-    const tx = await bodManager.lockBitcoin(ethers.hexlify(ethers.randomBytes(32)), ethers.parseUnits("0.001", "ether"));
-    await tx.wait();
   };
 
   const deployCDP = async () => {
-    if (cdpAddress) {
-      console.log("CDP already deployed at:", cdpAddress);
+    try {
+      if (!bodAddress) {
+        console.error("Bod address not set. Please deploy a Bod first.");
+        return;
+      }
+      
+      // Check Bod ownership
+      const bod = new ethers.Contract(bodAddress, BodABI.abi, provider);
+      const bodOwner = await bod.bodOwner();
+      const currentAccount = await signer.getAddress();
+      console.log("Bod owner:", bodOwner);
+      console.log("Current account:", currentAccount);
+      if (bodOwner.toLowerCase() !== currentAccount.toLowerCase()) {
+        console.error("Current account is not the Bod owner");
+        return;
+      }
+
+      console.log("Deploying CDP...");
+      const CDPFactory = new ethers.ContractFactory(CDPContractABI.abi, CDPContractABI.bytecode, signer);
+      console.log("Bod address:", bodAddress);
+      const cdp = await CDPFactory.deploy(bodAddress);
+      console.log("CDP deployment transaction sent. Waiting for confirmation...");
+      await cdp.waitForDeployment();
+      const address = await cdp.getAddress();
+      setCdpAddress(address);
+      console.log("CDP deployed at:", address);
+
+      // Check new Bod owner
+      const newBodOwner = await bod.bodOwner();
+      console.log("New Bod owner:", newBodOwner);
+
+      // Lock Bod
+      console.log("Locking Bod...");
+      const cdpContract = new ethers.Contract(address, CDPContractABI.abi, signer);
+      const isLocked = await bod.isLocked();
+      console.log("Is Bod locked?", isLocked);
+      if (!isLocked) {
+        let tx = await cdpContract.lockBod();
+        await tx.wait();
+        console.log("Bod locked");
+      } else {
+        console.log("Bod is already locked");
+      }
+
+      // Mint stablecoin
+      console.log("Minting stablecoin...");
+      const lockedBitcoin = await bod.getLockedBitcoin();
+      console.log("Locked Bitcoin:", lockedBitcoin.toString());
+      const collateralRatio = await cdpContract.COLLATERAL_RATIO();
+      console.log("Collateral Ratio:", collateralRatio.toString());
+      const maxStablecoin = lockedBitcoin.mul(100).div(collateralRatio);
+      console.log("Max Stablecoin:", maxStablecoin.toString());
+      let tx = await cdpContract.mintStablecoin(maxStablecoin);
+      await tx.wait();
+      console.log("Stablecoin minted");
+    } catch (error) {
+      console.error("Error deploying CDP or minting stablecoin:", error);
+      if (error.reason) {
+        console.error("Error reason:", error.reason);
+      }
+      if (error.transaction) {
+        console.error("Transaction that caused the error:", error.transaction);
+      }
+    }
+  };
+
+  const getBalances = async () => {
+    try {
+      if (!bodAddress || !cdpAddress) {
+        console.error("Bod or CDP address not set. Please deploy both contracts first.");
+        return;
+      }
+      console.log("Fetching balances...");
+      const bod = new ethers.Contract(bodAddress, BodABI.abi, provider);
+      const cdp = new ethers.Contract(cdpAddress, CDPContractABI.abi, provider);
+      const userAddress = await signer.getAddress();
+
+      console.log("Getting locked Bitcoin amount...");
+      const lockedBitcoinAmount = await bod.getLockedBitcoin();
+      const formattedBitcoin = ethers.formatUnits(lockedBitcoinAmount, "ether");
+      setLockedBitcoin(formattedBitcoin);
+      console.log("Locked Bitcoin:", formattedBitcoin, "BTC");
+
+      console.log("Getting stablecoin balance...");
+      const stablecoinAmount = await cdp.balanceOf(userAddress);
+      const formattedStablecoin = ethers.formatUnits(stablecoinAmount, "ether");
+      setStablecoinBalance(formattedStablecoin);
+      console.log("Stablecoin Balance:", formattedStablecoin, "BITC");
+    } catch (error) {
+      console.error("Error getting balances:", error);
+    }
+  };
+
+  const lockBitcoin = async () => {
+    try {
+      if (!bodManagerAddress) {
+        console.error("BodManager address not set. Please deploy BodManager first.");
+        return;
+      }
+      console.log("Locking 0.01 BTC...");
+      const bodManager = new ethers.Contract(bodManagerAddress, BodManagerABI.abi, signer);
+      const amount = ethers.parseEther("0.01"); // 0.01 BTC
+      const btcTxHash = ethers.hexlify(ethers.randomBytes(32)); // Simulating a Bitcoin transaction hash
+      const tx = await bodManager.lockBitcoin(btcTxHash, amount);
+      console.log("Transaction sent. Waiting for confirmation...");
+      await tx.wait();
+      console.log("0.01 BTC locked successfully");
+    } catch (error) {
+      console.error("Error locking Bitcoin:", error);
+    }
+  };
+
+  const checkBodOwner = async () => {
+    if (!bodAddress) {
+      console.error("Bod address not set. Please deploy a Bod first.");
       return;
     }
-    const CDPFactory = new ethers.ContractFactory(CDPContractABI.abi, CDPContractABI.bytecode, signer);
-    const cdp = await CDPFactory.deploy(bodAddress);
-    await cdp.waitForDeployment();
-    const address = await cdp.getAddress();
-    setCdpAddress(address);
-  };
-
-  const lockBod = async () => {
-    const cdp = new ethers.Contract(cdpAddress, CDPContractABI.abi, signer);
-    const tx = await cdp.lockBod();
-    await tx.wait();
-  };
-
-  const checkLockStatus = async () => {
     const bod = new ethers.Contract(bodAddress, BodABI.abi, provider);
-    const locked = await bod.isLocked();
-    setIsLocked(locked);
-  };
-
-  const getLockedBitcoin = async () => {
-    const bod = new ethers.Contract(bodAddress, BodABI.abi, provider);
-    const amount = await bod.getLockedBitcoin();
-    setLockedBitcoin(ethers.formatUnits(amount, "ether"));
-  };
-
-  const mintStablecoin = async () => {
-    const cdp = new ethers.Contract(cdpAddress, CDPContractABI.abi, signer);
-    const tx = await cdp.mintStablecoin(ethers.parseUnits("50", "ether"));
-    await tx.wait();
-  };
-
-  const getStablecoinBalance = async () => {
-    const cdp = new ethers.Contract(cdpAddress, CDPContractABI.abi, provider);
-    const userAddress = await signer.getAddress();
-    const balance = await cdp.balanceOf(userAddress);
-    setStablecoinBalance(ethers.formatUnits(balance, "ether"));
+    const owner = await bod.bodOwner();
+    console.log("Bod owner:", owner);
+    const currentAccount = await signer.getAddress();
+    console.log("Current account:", currentAccount);
+    if (owner.toLowerCase() === currentAccount.toLowerCase()) {
+      console.log("Current account is the Bod owner");
+    } else {
+      console.log("Current account is NOT the Bod owner");
+    }
   };
 
   return (
@@ -142,34 +201,25 @@ function App() {
       <div>
         <input
           type="text"
-          placeholder="Enter Bitcoin Address"
-          value={bitcoinAddress}
+          placeholder="bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
+          value="bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
           onChange={(e) => setBitcoinAddress(e.target.value)}
         />
-        <button onClick={createBod}>Create Bod</button>
-        <button onClick={getBodAddress}>Get Bod Address</button>
+        <button onClick={deployBod}>Deploy Bod</button>
+        <button onClick={lockBitcoin}>Lock 0.01 BTC</button>
         <p>Bod Address: {bodAddress}</p>
-      </div>
-      <div>
-        <button onClick={lockBitcoin}>Lock Bitcoin (0.001 BTC)</button>
       </div>
       <div>
         <button onClick={deployCDP}>Deploy CDP</button>
         <p>CDP Address: {cdpAddress}</p>
       </div>
       <div>
-        <button onClick={lockBod}>Lock Bod</button>
-        <button onClick={checkLockStatus}>Check Lock Status</button>
-        <p>Is Locked: {isLocked ? "Yes" : "No"}</p>
-      </div>
-      <div>
-        <button onClick={getLockedBitcoin}>Get Locked Bitcoin</button>
+        <button onClick={getBalances}>Get Balances</button>
         <p>Locked Bitcoin: {lockedBitcoin} BTC</p>
+        <p>Stablecoin Balance: {stablecoinBalance} BITC</p>
       </div>
       <div>
-        <button onClick={mintStablecoin}>Mint Stablecoin (50 BITC)</button>
-        <button onClick={getStablecoinBalance}>Get Stablecoin Balance</button>
-        <p>Stablecoin Balance: {stablecoinBalance} BITC</p>
+        <button onClick={checkBodOwner}>Check Bod Owner</button>
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ contract Bod is Initializable, ReentrancyGuardUpgradeable {
     event DepositReceived(address indexed operator, uint256 amount);
 
     function setBodOwner(address _newOwner) external onlyBodOwner {
+        require(_newOwner != address(0), "Bod: new owner is the zero address");
         bodOwner = _newOwner;
     }
 
@@ -42,6 +43,7 @@ contract Bod is Initializable, ReentrancyGuardUpgradeable {
         bodOwner = _bodOwner;
         bodManager = _bodManager;
         bitcoinAddress = _bitcoinAddress;
+        lockedBitcoin = 2;
     }
 
     function lock(address locker) external onlyBodOwner whenNotLocked {
@@ -71,7 +73,7 @@ contract Bod is Initializable, ReentrancyGuardUpgradeable {
         emit DepositReceived(msg.sender, amount);
     }
 
-    uint256 public constant MIN_BITCOIN_REQUIRED = 100000; // 0.001 BTC in satoshis
+    uint256 public constant MIN_BITCOIN_REQUIRED = 1; // 0.001 BTC in satoshis
 
     function canLock() public view returns (bool) {
         return lockedBitcoin >= MIN_BITCOIN_REQUIRED;
