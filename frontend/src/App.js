@@ -5,15 +5,15 @@ import BodABI from './abis/Bod.sol/Bod.json';
 import CDPContractABI from './abis/CDPContract.sol/CDPContract.json';
 
 function App() {
-  const [bodManagerAddress, setBodManagerAddress] = useState('');
-  const [bodAddress, setBodAddress] = useState('');
-  const [cdpAddress, setCdpAddress] = useState('');
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [bodManagerAddress, setBodManagerAddress] = useState(() => localStorage.getItem('bodManagerAddress') || '');
+  const [bodAddress, setBodAddress] = useState(() => localStorage.getItem('bodAddress') || '');
+  const [cdpAddress, setCdpAddress] = useState(() => localStorage.getItem('cdpAddress') || '');
   const [bitcoinAddress, setBitcoinAddress] = useState('');
   const [lockedBitcoin, setLockedBitcoin] = useState('0');
   const [isLocked, setIsLocked] = useState(false);
   const [stablecoinBalance, setStablecoinBalance] = useState('0');
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
 
   useEffect(() => {
     const initializeEthers = async () => {
@@ -34,33 +34,53 @@ function App() {
     initializeEthers();
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem('bodManagerAddress', bodManagerAddress);
+  }, [bodManagerAddress]);
+
+  useEffect(() => {
+    localStorage.setItem('bodAddress', bodAddress);
+  }, [bodAddress]);
+
+  useEffect(() => {
+    localStorage.setItem('cdpAddress', cdpAddress);
+  }, [cdpAddress]);
+
   const deployBodManager = async () => {
+    if (bodManagerAddress) {
+      console.log("BodManager already deployed at:", bodManagerAddress);
+      return;
+    }
     try {
-      await provider.send("eth_requestAccounts", []); // Request user accounts
-      const signer = await provider.getSigner();
+      await provider.send("eth_requestAccounts", []);
       const BodManagerFactory = new ethers.ContractFactory(BodManagerABI.abi, BodManagerABI.bytecode, signer);
       const bodManager = await BodManagerFactory.deploy();
       await bodManager.waitForDeployment();
-      setBodManagerAddress(await bodManager.getAddress());
+      const address = await bodManager.getAddress();
+      setBodManagerAddress(address);
     } catch (error) {
       console.error("Error deploying BodManager:", error);
     }
   };
 
   const createBod = async () => {
+    if (bodAddress) {
+      console.log("Bod already created at:", bodAddress);
+      return;
+    }
     const bodManager = new ethers.Contract(bodManagerAddress, BodManagerABI.abi, signer);
     const tx = await bodManager.createBod(bitcoinAddress);
     await tx.wait();
     const userAddress = await signer.getAddress();
-    const bodAddress = await bodManager.getBod(userAddress);
-    setBodAddress(bodAddress);
+    const newBodAddress = await bodManager.getBod(userAddress);
+    setBodAddress(newBodAddress);
   };
 
   const getBodAddress = async () => {
     const bodManager = new ethers.Contract(bodManagerAddress, BodManagerABI.abi, signer);
     const userAddress = await signer.getAddress();
-    const bodAddress = await bodManager.getBod(userAddress);
-    setBodAddress(bodAddress);
+    const newBodAddress = await bodManager.getBod(userAddress);
+    setBodAddress(newBodAddress);
   };
 
   const lockBitcoin = async () => {
@@ -70,10 +90,15 @@ function App() {
   };
 
   const deployCDP = async () => {
+    if (cdpAddress) {
+      console.log("CDP already deployed at:", cdpAddress);
+      return;
+    }
     const CDPFactory = new ethers.ContractFactory(CDPContractABI.abi, CDPContractABI.bytecode, signer);
     const cdp = await CDPFactory.deploy(bodAddress);
-    await cdp.deployed();
-    setCdpAddress(cdp.address);
+    await cdp.waitForDeployment();
+    const address = await cdp.getAddress();
+    setCdpAddress(address);
   };
 
   const lockBod = async () => {
