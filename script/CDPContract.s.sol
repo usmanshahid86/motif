@@ -19,7 +19,7 @@ contract DeployCDPContract is Script {
 
         // Deploy the Bod contract
         bod = new Bod();
-        bod.initialize(msg.sender, address(this));
+        bod.initialize(msg.sender, address(this), "defaultBitcoinAddress");
 
         // Set the bodOwner in Bod contract
         bod.setBodOwner(bodOwner);

@@ -14,7 +14,7 @@ contract BodTest is Test {
         bodManager = address(0x1);
 
         bod = new Bod();
-        bod.initialize(owner, bodManager);
+        bod.initialize(owner, bodManager, "testBitcoinAddress");
     }
 
     function testInitialize() public view {
@@ -23,18 +23,17 @@ contract BodTest is Test {
     }
 
     function testLockBitcoin() public {
-        bytes32 btcTxHash = keccak256("btc_tx_hash");
+        bytes32 btcTxHash = bytes32(uint256(0x123));
         uint256 amount = 1 ether;
 
-        vm.prank(bodManager);
-        bod.lockBitcoin(btcTxHash, amount);
+        bod.depositBitcoin(amount, btcTxHash);
 
         assertEq(bod.lockedBitcoin(), amount, "Locked Bitcoin amount should be correct");
     }
 
     function testLockAndUnlock() public {
         vm.prank(owner);
-        bod.lock();
+        bod.lock(address(this));
         assertTrue(bod.isLocked(), "Bod should be locked");
 
         vm.prank(owner);
@@ -44,13 +43,13 @@ contract BodTest is Test {
 
     function testCannotLockBitcoinWhenLocked() public {
         vm.prank(owner);
-        bod.lock();
+        bod.lock(address(this));
 
         bytes32 btcTxHash = keccak256("btc_tx_hash");
         uint256 amount = 1 ether;
 
         vm.prank(bodManager);
         vm.expectRevert("Bod: locked");
-        bod.lockBitcoin(btcTxHash, amount);
+        bod.depositBitcoin(amount, btcTxHash);
     }
 }

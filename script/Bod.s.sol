@@ -19,7 +19,7 @@ contract DeployBod is Script {
         // Replace these addresses with actual addresses for bodOwner and bodManager
         address bodOwner = address(0x1234); // Replace with actual address
         address bodManager = address(0x5678); // Replace with actual address
-        bod.initialize(bodOwner, bodManager);
+        bod.initialize(bodOwner, bodManager, "defaultBitcoinAddress");
 
         console.log("Bod deployed at:", address(bod));
         console.log("Bod initialized with owner:", bodOwner);

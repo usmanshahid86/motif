@@ -18,7 +18,7 @@ contract CDPContractTest is Test {
         bodManager = new BodManager();
         bodManager.initialize(owner);
 
-        address bodAddress = bodManager.createBod();
+        address bodAddress = bodManager.createBod("testBitcoinAddress");
         bod = Bod(bodAddress);
 
         bytes32 btcTxHash = keccak256("btc_tx_hash");

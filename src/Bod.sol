@@ -8,6 +8,8 @@ contract Bod is Initializable, ReentrancyGuardUpgradeable {
     address public bodManager;
     uint256 public lockedBitcoin;
     bool public isLocked;
+    address public lockedBy;
+    string public bitcoinAddress;
 
     event BitcoinLocked(bytes32 btcTxHash, uint256 amount);
     event BodLocked(address locker);
@@ -33,29 +35,26 @@ contract Bod is Initializable, ReentrancyGuardUpgradeable {
         _;
     }
 
-    function initialize(address _bodOwner, address _bodManager) external initializer {
+    function initialize(address _bodOwner, address _bodManager, string memory _bitcoinAddress) external initializer {
         require(_bodOwner != address(0), "Bod: bodOwner cannot be zero address");
         require(_bodManager != address(0), "Bod: bodManager cannot be zero address");
+        require(bytes(_bitcoinAddress).length > 0, "Bod: Bitcoin address cannot be empty");
         bodOwner = _bodOwner;
         bodManager = _bodManager;
+        bitcoinAddress = _bitcoinAddress;
     }
 
-    function lockBitcoin(bytes32 btcTxHash, uint256 amount) external onlyBodManager whenNotLocked {
-        require(btcTxHash != bytes32(0), "Bod: Invalid Bitcoin transaction hash");
-        require(amount > 0, "Bod: Amount must be greater than 0");
-        
-        lockedBitcoin += amount;
-        emit BitcoinLocked(btcTxHash, amount);
-    }
-
-    function lock() external onlyBodOwner whenNotLocked {
+    function lock(address locker) external onlyBodOwner whenNotLocked {
         isLocked = true;
-        emit BodLocked(msg.sender);
+        lockedBy = locker;
+        emit BodLocked(locker);
     }
 
-    function unlock() external onlyBodOwner {
+    function unlock() external {
+        require(msg.sender == bodOwner || msg.sender == lockedBy, "Bod: not authorized to unlock");
         require(isLocked, "Bod: not locked");
         isLocked = false;
+        lockedBy = address(0);
         emit BodUnlocked(msg.sender);
     }
 
@@ -63,9 +62,18 @@ contract Bod is Initializable, ReentrancyGuardUpgradeable {
         return lockedBitcoin;
     }
 
-    function depositBitcoin(uint256 amount) external onlyBodManager {
-        require(amount > 0, "Bod: Deposit amount must be greater than 0");
+    function depositBitcoin(uint256 amount, bytes32 btcTxHash) external onlyBodManager whenNotLocked {
+        require(amount > 0, "Bod: Amount must be greater than 0");
+        require(btcTxHash != bytes32(0), "Bod: Invalid Bitcoin transaction hash");
+        
         lockedBitcoin += amount;
+        emit BitcoinLocked(btcTxHash, amount);
         emit DepositReceived(msg.sender, amount);
+    }
+
+    uint256 public constant MIN_BITCOIN_REQUIRED = 100000; // 0.001 BTC in satoshis
+
+    function canLock() public view returns (bool) {
+        return lockedBitcoin >= MIN_BITCOIN_REQUIRED;
     }
 }

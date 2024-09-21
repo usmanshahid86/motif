@@ -16,6 +16,7 @@ contract CDPContract is ERC20, Ownable {
     constructor(address _bod) ERC20("BITC Stablecoin", "BITC") Ownable(msg.sender) {
         bod = Bod(_bod);
         require(bod.bodOwner() == msg.sender, "CDPContract: Caller is not the Bod owner");
+        require(bod.canLock(), "CDPContract: Insufficient Bitcoin in Bod");
     }
 
     bool private bodLocked;
@@ -25,7 +26,7 @@ contract CDPContract is ERC20, Ownable {
         _;
     }
 
-    function mintStablecoin(uint256 amount) external onlyOwner {
+    function mintStablecoin(uint256 amount) external onlyOwner onlyWhenBodLocked {
         uint256 lockedBitcoin = bod.getLockedBitcoin();
         uint256 maxStablecoin = (lockedBitcoin * 100) / COLLATERAL_RATIO;
         require(totalSupply() + amount <= maxStablecoin, "CDPContract: Exceeds maximum mintable amount");
@@ -34,13 +35,13 @@ contract CDPContract is ERC20, Ownable {
         emit StablecoinMinted(msg.sender, amount);
     }
 
-    function burnStablecoin(uint256 amount) external {
+    function burnStablecoin(uint256 amount) external onlyWhenBodLocked {
         require(balanceOf(msg.sender) >= amount, "CDPContract: Insufficient balance");
         _burn(msg.sender, amount);
         emit StablecoinBurned(msg.sender, amount);
     }
 
-    function liquidate() external onlyOwner {
+    function liquidate() external onlyOwner onlyWhenBodLocked {
         uint256 lockedBitcoin = bod.getLockedBitcoin();
         uint256 currentCollateralRatio = (lockedBitcoin * 100) / totalSupply();
         
@@ -57,7 +58,7 @@ contract CDPContract is ERC20, Ownable {
     }
 
     function lockBod() external onlyOwner {
-        bod.lock();
+        bod.lock(address(this));
         bodLocked = true;
     }
 }

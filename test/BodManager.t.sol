@@ -21,22 +21,22 @@ contract BodManagerTest is Test {
 
     function testCreateBod() public {
         vm.prank(user1);
-        address bodAddress = bodManager.createBod();
+        address bodAddress = bodManager.createBod("testBitcoinAddress");
         assertTrue(bodAddress != address(0), "Bod should be created");
         assertTrue(bodManager.hasBod(user1), "User1 should have a Bod");
     }
 
     function testCannotCreateMultipleBods() public {
         vm.startPrank(user1);
-        bodManager.createBod();
+        bodManager.createBod("testBitcoinAddress1");
         vm.expectRevert("BodManager: Sender already has a bod");
-        bodManager.createBod();
+        bodManager.createBod("testBitcoinAddress2");
         vm.stopPrank();
     }
 
     function testLockBitcoin() public {
         vm.startPrank(user1);
-        bodManager.createBod();
+        bodManager.createBod("testBitcoinAddress");
         bytes32 btcTxHash = keccak256("btc_tx_hash");
         bodManager.lockBitcoin(btcTxHash, 1 ether);
         vm.stopPrank();
