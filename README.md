@@ -1,17 +1,13 @@
-## Foundry
+## BitDSM
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+**BitDSM brings native Bitcoin staking to the ethereum.**
 
-Foundry consists of:
+Users can build:
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+-   **Stable Coins**: CDP based stable coins backed by native Bitcoin locked via PSBT.
+-   **Lend and Borrowing**: Collateral-lock based financial products such as lending/borrowing.
+-   **Bridge**: Can you locked Bitcoin to act as a Bridge.
 
-## Documentation
-
-https://book.getfoundry.sh/
 
 ## Usage
 
@@ -48,16 +44,11 @@ $ anvil
 ### Deploy
 
 ```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+$ forge script script/deploy.s.sol:DeployScript --fork-url http://localhost:8545 --broadcast --private-key $PRIVATE_KEY
 ```
 
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
+### To-Do
+EigenLayer AVS deployment and operator registration.
 
 ```shell
 $ forge --help
