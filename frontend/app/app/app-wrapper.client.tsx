@@ -429,7 +429,7 @@ function AppWrapper() {
                 const publicKey = firstAddress.publicKey
                 const btcAdd = firstAddress.address;
 
-                setBitcoinAddress("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh")
+                setBitcoinAddress(btcAdd)
                 setOpenDialog(false)
 
                 // const address = await getBODAddress(publicKey as string, ethAddress)
