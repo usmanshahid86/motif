@@ -638,7 +638,7 @@ function AppWrapper() {
                       <Loader2 className='animate-spin' />
                       :
                       <span>
-                        Update Balances
+                        Refresh Balances
                       </span>
                   }
                 </Button>
