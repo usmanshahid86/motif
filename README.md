@@ -1,4 +1,5 @@
 ## BitDSM
+![Bitcoin Abstract Cover](./assets/cover.webp)
 
 **BitDSM brings native Bitcoin staking to the ethereum.**
 
