@@ -5,6 +5,7 @@ import "forge-std/Script.sol";
 import "../src/BodManager.sol";
 import "../src/Bod.sol";
 import "../src/CDPContract.sol";
+import "../src/BitDSMAVS.sol";
 
 contract DeployScript is Script {
     function setUp() public {}
@@ -52,6 +53,21 @@ contract DeployScript is Script {
         uint256 stablecoinBalance = cdp.balanceOf(deployer);
         console.log("Stablecoin balance of deployer:", stablecoinBalance);
 
+        // EigenLayer Holesky addresses
+        address HOLESKY_DELEGATION_MANAGER_ADDRESS = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
+        address HOLESKY_STAKE_REGISTRY_ADDRESS = 0x41F6a9eCC12c3Df46608270aAf6C458525269507;
+        address HOLESKY_AVS_DIRECTORY_ADDRESS = 0x055733000064333CaDDbC92763c58BF0192fFeBf;
+
+        // Deploy BitDSMAVS
+        BitDSMAVS avs = new BitDSMAVS(
+            HOLESKY_AVS_DIRECTORY_ADDRESS,
+            HOLESKY_STAKE_REGISTRY_ADDRESS,
+            HOLESKY_DELEGATION_MANAGER_ADDRESS,
+            address(bodManager),
+            address(cdp)
+        );
+
+        console.log("BitDSMAVS deployed at:", address(avs));
 
         vm.stopBroadcast();
     }
