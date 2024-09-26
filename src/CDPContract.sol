@@ -16,7 +16,7 @@ contract CDPContract is ERC20, Ownable {
     constructor(address _bod) ERC20("BITC Stablecoin", "BITC") Ownable(msg.sender) {
         bod = Bod(_bod);
         require(bod.bodOwner() == msg.sender, "CDPContract: Caller is not the Bod owner");
-        uint256 lockedBitcoin = bod.getLockedBitcoin();
+        //uint256 lockedBitcoin = bod.getLockedBitcoin();
         require(bod.canLock(), "CDPContract: Insufficient Bitcoin in Bod");
         //bod.setBodOwner(address(this)); // Transfer ownership to the CDPContract
         //this.lockBod();

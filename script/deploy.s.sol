@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.12;
 
 import "forge-std/Script.sol";
 import "../src/BodManager.sol";
@@ -58,11 +58,23 @@ contract DeployScript is Script {
         address HOLESKY_STAKE_REGISTRY_ADDRESS = 0x41F6a9eCC12c3Df46608270aAf6C458525269507;
         address HOLESKY_AVS_DIRECTORY_ADDRESS = 0x055733000064333CaDDbC92763c58BF0192fFeBf;
 
+        // Assuming the contract interfaces are IAVSDirectory, IRegistryCoordinator, and IStakeRegistry
+        IAVSDirectory avsDirectory = IAVSDirectory(HOLESKY_AVS_DIRECTORY_ADDRESS);
+        IRegistryCoordinator registryCoordinator = IRegistryCoordinator(HOLESKY_STAKE_REGISTRY_ADDRESS);
+        IStakeRegistry stakeRegistry = IStakeRegistry(HOLESKY_DELEGATION_MANAGER_ADDRESS);
+
+        // Use the contract instances directly
+        // someFunction(
+        //     avsDirectory,
+        //     registryCoordinator,
+        //     stakeRegistry
+        // );
+
         // Deploy BitDSMAVS
         BitDSMAVS avs = new BitDSMAVS(
-            HOLESKY_AVS_DIRECTORY_ADDRESS,
-            HOLESKY_STAKE_REGISTRY_ADDRESS,
-            HOLESKY_DELEGATION_MANAGER_ADDRESS,
+            avsDirectory,
+            registryCoordinator,
+            stakeRegistry,
             address(bodManager),
             address(cdp)
         );

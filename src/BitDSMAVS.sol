@@ -1,7 +1,10 @@
 pragma solidity ^0.8.12;
 
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.9;
+
+import "@eigenlayer/contracts/libraries/BytesLib.sol";
 import "@eigenlayer-middleware/src/ServiceManagerBase.sol";
-import "@eigenlayer-middleware/src/StakeRegistry.sol";
 import "./BodManager.sol";
 import "./CDPContract.sol";
 
