@@ -2,6 +2,7 @@ pragma solidity ^0.8.12;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Bod is Initializable, ReentrancyGuardUpgradeable {
     address public bodOwner;

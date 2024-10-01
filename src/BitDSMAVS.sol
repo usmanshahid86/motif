@@ -44,6 +44,17 @@ contract BitDSMAVS is ServiceManagerBase {
         cdpContract = CDPContract(_cdpContract);
     }
 
+    function initialize(
+        IAVSDirectory _avsDirectory,
+        IRegistryCoordinator _registryCoordinator,
+        IStakeRegistry _stakeRegistry,
+        address _bodManager,
+        address _cdpContract
+    ) external {
+        // Initialize the contract with the provided parameters
+        // This function can be used to set up any additional state or perform any necessary actions
+    }
+
     function createLockBitcoinTask(bytes32 btcTxHash, uint256 amount) external {
         require(bodManager.hasBod(msg.sender), "Sender does not have a BOD");
         
