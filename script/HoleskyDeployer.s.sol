@@ -115,7 +115,7 @@ contract BitDSMDeployer is Script, Utils {
         address bitDSMPauser
     ) internal {
         // Deploy proxy admin for ability to upgrade proxy contracts
-        bitDSMProxyAdmin = new ProxyAdmin(msg.sender);
+        bitDSMProxyAdmin = new ProxyAdmin();
 
         // Deploy pauser registry
         {
