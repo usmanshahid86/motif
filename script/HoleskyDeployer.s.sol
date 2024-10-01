@@ -58,12 +58,12 @@ contract BitDSMDeployer is Script, Utils {
         address bitDSMPauser = msg.sender;
 
         vm.startBroadcast();
-        _deployERC20AndStrategyAndWhitelistStrategy(
-            eigenLayerProxyAdmin,
-            eigenLayerPauserReg,
-            baseStrategyImplementation,
-            strategyManager
-        );
+        // _deployERC20AndStrategyAndWhitelistStrategy(
+        //     eigenLayerProxyAdmin,
+        //     eigenLayerPauserReg,
+        //     baseStrategyImplementation,
+        //     strategyManager
+        // );
         _deployBitDSMContracts(
             delegationManager,
             avsDirectory,
@@ -115,7 +115,7 @@ contract BitDSMDeployer is Script, Utils {
         address bitDSMPauser
     ) internal {
         // Deploy proxy admin for ability to upgrade proxy contracts
-        bitDSMProxyAdmin = new ProxyAdmin();
+        bitDSMProxyAdmin = new ProxyAdmin(msg.sender);
 
         // Deploy pauser registry
         {
@@ -158,9 +158,10 @@ contract BitDSMDeployer is Script, Utils {
                 delegationManager
             );
 
-            bitDSMProxyAdmin.upgrade(
-                TransparentUpgradeableProxy(payable(address(stakeRegistryProxy))),
-                address(stakeRegistryImplementation)
+            bitDSMProxyAdmin.upgradeAndCall(
+                ITransparentUpgradeableProxy(payable(address(stakeRegistryProxy))),
+                address(stakeRegistryImplementation),
+                ""
             );
         }
         {
@@ -179,7 +180,7 @@ contract BitDSMDeployer is Script, Utils {
             );
 
             bitDSMProxyAdmin.upgradeAndCall(
-                TransparentUpgradeableProxy(payable(address(stakeRegistryProxy))),
+                ITransparentUpgradeableProxy(payable(address(stakeRegistryProxy))),
                 address(stakeRegistryImplementation),
                 abi.encodeWithSelector(
                     ECDSAStakeRegistry.initialize.selector,
@@ -199,7 +200,7 @@ contract BitDSMDeployer is Script, Utils {
         );
         // Upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         bitDSMProxyAdmin.upgradeAndCall(
-            TransparentUpgradeableProxy(
+            ITransparentUpgradeableProxy(
                 payable(address(bitDSMAVSProxy))
             ),
             address(bitDSMAVSImplementation),
