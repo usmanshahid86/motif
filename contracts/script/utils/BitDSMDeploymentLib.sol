@@ -17,7 +17,7 @@ import {UpgradeableProxyLib} from "./UpgradeableProxyLib.sol";
 import {CoreDeploymentLib} from "./CoreDeploymentLib.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-library HelloWorldDeploymentLib {
+library BitDSMDeploymentLib {
     using stdJson for *;
     using Strings for *;
     using UpgradeableProxyLib for address;
@@ -45,11 +45,7 @@ library HelloWorldDeploymentLib {
         // Deploy the implementation contracts, using the proxy contracts as inputs
         address stakeRegistryImpl =
             address(new ECDSAStakeRegistry(IDelegationManager(core.delegationManager)));
-        // address helloWorldServiceManagerImpl = address(
-        //     new HelloWorldServiceManager(
-        //         core.avsDirectory, result.stakeRegistry, core.delegationManager
-        //     )
-        // );
+        
         address bitDSMServiceManagerImpl = address(
             new BitDSMAVS(
                 core.avsDirectory, result.stakeRegistry, core.delegationManager, bodManager, cdpContract
@@ -85,7 +81,7 @@ library HelloWorldDeploymentLib {
 
         DeploymentData memory data;
         /// TODO: 2 Step for reading deployment json.  Read to the core and the AVS data
-        data.bitDSMServiceManager = json.readAddress(".contracts.helloWorldServiceManager");
+        data.bitDSMServiceManager = json.readAddress(".contracts.BitDSMServiceManager");
         data.stakeRegistry = json.readAddress(".contracts.stakeRegistry");
         data.wethStrategy = json.readAddress(".contracts.wethStrategy");
 
@@ -96,7 +92,7 @@ library HelloWorldDeploymentLib {
     function writeDeploymentJson(
         DeploymentData memory data
     ) internal {
-        writeDeploymentJson("deployments/hello-world/", block.chainid, data);
+        writeDeploymentJson("deployments/bitdsm/", block.chainid, data);
     }
 
     function writeDeploymentJson(
@@ -140,9 +136,9 @@ library HelloWorldDeploymentLib {
         return string.concat(
             '{"proxyAdmin":"',
             proxyAdmin.toHexString(),
-            '","helloWorldServiceManager":"',
+            '","BitDSMServiceManager":"',
             data.bitDSMServiceManager.toHexString(),
-            '","helloWorldServiceManagerImpl":"',
+            '","BitDSMServiceManagerImpl":"',
             data.bitDSMServiceManager.getImplementation().toHexString(),
             '","stakeRegistry":"',
             data.stakeRegistry.toHexString(),

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/Test.sol";
 import {Utils} from "./utils/Utils.sol";
-import {HelloWorldDeploymentLib} from "./utils/HelloWorldDeploymentLib.sol";
+import {BitDSMDeploymentLib} from "./utils/BitDSMDeploymentLib.sol";
 import {CoreDeploymentLib} from "./utils/CoreDeploymentLib.sol";
 import {UpgradeableProxyLib} from "./utils/UpgradeableProxyLib.sol";
 import {BodManager} from "../src/BodManager.sol";
@@ -20,14 +20,14 @@ import {
 
 // # To deploy and verify our contract
 // forge script script/HelloWorldDeployer.s.sol:HelloWorldDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
-contract HelloWorldDeployer is Script, Utils {
+contract BitDSMDeployer is Script, Utils {
     using CoreDeploymentLib for *;
     using UpgradeableProxyLib for address;
 
     address private deployer;
     address proxyAdmin;
     CoreDeploymentLib.DeploymentData coreDeployment;
-    HelloWorldDeploymentLib.DeploymentData helloWorldDeployment;
+    BitDSMDeploymentLib.DeploymentData bitdsmDeployment;
     address private bodManagerAddress;
     address private cdpContractAddress;
 
@@ -55,12 +55,12 @@ contract HelloWorldDeployer is Script, Utils {
         proxyAdmin = UpgradeableProxyLib.deployProxyAdmin();
 
         helloWorldDeployment =
-            HelloWorldDeploymentLib.deployContracts(proxyAdmin, bodManagerAddress, cdpContractAddress, coreDeployment, quorum);
+            BitDSMDeploymentLib.deployContracts(proxyAdmin, bodManagerAddress, cdpContractAddress, coreDeployment, quorum);
 
         vm.stopBroadcast();
 
         verifyDeployment();
-        HelloWorldDeploymentLib.writeDeploymentJson(helloWorldDeployment);
+        BitDSMDeploymentLib.writeDeploymentJson(bitdsmDeployment);
     }
 
     function deploy_bod_manager_and_create_bod() public {
@@ -108,10 +108,10 @@ contract HelloWorldDeployer is Script, Utils {
 
     function verifyDeployment() internal view {
         require(
-            helloWorldDeployment.stakeRegistry != address(0), "StakeRegistry address cannot be zero"
+            bitdsmDeployment.stakeRegistry != address(0), "StakeRegistry address cannot be zero"
         );
         require(
-            helloWorldDeployment.bitDSMServiceManager != address(0),
+            bitdsmDeployment.bitDSMServiceManager != address(0),
             "HelloWorldServiceManager address cannot be zero"
         );
         require(proxyAdmin != address(0), "ProxyAdmin address cannot be zero");
