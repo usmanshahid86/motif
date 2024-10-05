@@ -1,0 +1,23 @@
+{
+  "addresses": {
+    "avsDirectory": "0x055733000064333CaDDbC92763c58BF0192fFeBf",
+    "delegation": "0xA44151489861Fe9e3055d95adC98FbD462B948e7",
+    "eigenLayerProxyAdmin": "0xDB023566064246399b4AE851197a97729C93A6cf",
+    "eigenPodBeacon": "0x7261C2bd75a7ACE1762f6d7FAe8F63215581832D",
+    "eigenPodManager": "0x30770d7E3e71112d7A6b7259542D1f680a70e315",
+    "emptyContract": "0x9690d52B1Ce155DB2ec5eCbF5a262ccCc7B3A6D2",
+    "strategies": {
+      "ankerETH": "0x70EB4D3c164a6B4A5f908D4FBb5a9cAfFb66bAB6"
+    },
+    "strategyAddresses": "0x70EB4D3c164a6B4A5f908D4FBb5a9cAfFb66bAB6",
+    "strategyManager": "0x858646372CC42E1A627fcE94aa7A7033e7CF075A"
+  },
+  "chainInfo": {
+    "chainId": 17000,
+    "deploymentBlock": 1167044
+  },
+  "parameters": {
+    "executorMultisig": "0xeaef21ae3f6070ded1fd0865ed0c098ad7d11525",
+    "operationsMultisig": "0xeaef21ae3f6070ded1fd0865ed0c098ad7d11525"
+  }
+}

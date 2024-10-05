@@ -22,4 +22,18 @@ go.work
 go.work.sum
 
 # env file
+# Compiler files
+cache/
+out/
+
+# Ignores development broadcast logs
+broadcast/*
+
+# Docs
+docs/
+
+# Dotenv file
 .env
+
+# Mac OS X Finder
+.DS_Store
