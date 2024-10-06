@@ -43,8 +43,8 @@ forge script script/BitDSMDeployer.s.sol:BitDSMDeployer \
 | CDPContract                 | [0x1b44f151D36a6439fB2Cf3639242307c21238A29](https://holesky.etherscan.io/address/0x1b44f151D36a6439fB2Cf3639242307c21238A29)   |
 | BitDSMAVS (ServiceManager)  | [0x9e09c22b6ffdbb35083966af90020214f52be16e](https://holesky.etherscan.io/address/0x9e09c22b6ffdbb35083966af90020214f52be16e)   |
 | BitDSMServiceManagerImpl    | [0xB301332d451918bd91D4b0FBAeff2d45d2ec5912](https://holesky.etherscan.io/address/0xb301332d451918bd91d4b0fbaeff2d45d2ec5912)   |   
-| stakeRegistry               | [0x75e9e52cbd55586aca2fe0c0de7f471b78b09fe9]()
-| stakeRegistryImpl           | [0xf0de4f21eed29829b665a9ef7a91fcae9b39db25]()
+| stakeRegistry               | [0x75e9e52cbd55586aca2fe0c0de7f471b78b09fe9](https://holesky.etherscan.io/address/0x75e9e52cbd55586aca2fe0c0de7f471b78b09fe9)   |
+| stakeRegistryImpl           | [0xf0de4f21eed29829b665a9ef7a91fcae9b39db25](https://holesky.etherscan.io/address/0xf0de4f21eed29829b665a9ef7a91fcae9b39db25)   |
 
 Please see [Current Testnet Deployment](https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment) for additional deployed addresses of core EigenLayer contracts.
 
