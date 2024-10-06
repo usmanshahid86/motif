@@ -54,7 +54,7 @@ contract BitDSMDeployer is Script, Utils {
         vm.startBroadcast(deployer);
         proxyAdmin = UpgradeableProxyLib.deployProxyAdmin();
 
-        helloWorldDeployment =
+        bitdsmDeployment =
             BitDSMDeploymentLib.deployContracts(proxyAdmin, bodManagerAddress, cdpContractAddress, coreDeployment, quorum);
 
         vm.stopBroadcast();

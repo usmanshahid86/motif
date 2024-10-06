@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.12;
 
-import {BitDSMServiceManager} from "../src/BitDSMAVS.sol";
+import {BitDSMAVS} from "../src/BitDSMAVS.sol";
 import {MockAVSDeployer} from "@eigenlayer-middleware/test/utils/MockAVSDeployer.sol";
 import {ECDSAStakeRegistry} from "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
 import {Vm} from "forge-std/Vm.sol";
@@ -31,7 +31,7 @@ contract BitDSMTaskManagerSetup is MockAVSDeployer {
     Operator[] internal operators;
     TrafficGenerator internal generator;
 
-    BitDMSDeploymentLib.DeploymentData internal bitdsmDeployment;
+    BitDSMDeploymentLib.DeploymentData internal bitdsmDeployment;
     CoreDeploymentLib.DeploymentData internal coreDeployment;
     CoreDeploymentLib.DeploymentConfigData coreConfigData;
 
@@ -57,7 +57,7 @@ contract BitDSMTaskManagerSetup is MockAVSDeployer {
 
         bitdsmDeployment =
             BitDSMDeploymentLib.deployContracts(proxyAdmin, proxyAdmin, proxyAdmin, coreDeployment, quorum);
-        labelContracts(coreDeployment, bitDSMDeployment);
+        labelContracts(coreDeployment, bitdsmDeployment);
     }
 
     function labelContracts(
@@ -73,13 +73,13 @@ contract BitDSMTaskManagerSetup is MockAVSDeployer {
         vm.label(coreDeploymenttest.pauserRegistry, "PauserRegistry");
         vm.label(coreDeploymenttest.wethStrategy, "WETHStrategy");
 
-        vm.label(bitdsmDeploymenttest.bitDSMServiceManager, "HelloWorldServiceManager");
+        vm.label(bitdsmDeploymenttest.bitDSMServiceManager, "BitDSMServiceManager");
         vm.label(bitdsmDeploymenttest.stakeRegistry, "StakeRegistry");
         vm.label(bitdsmDeploymenttest.wethStrategy, "WETHStrategy");
     }
 }
 
-contract BitDSMServiceManagerInitialization is HelloWorldTaskManagerSetup {
+contract BitDSMServiceManagerInitialization is BitDSMTaskManagerSetup {
     function testInitialization() public view {
         assertTrue(bitdsmDeployment.stakeRegistry != address(0), "Not deployed");
         assertTrue(bitdsmDeployment.bitDSMServiceManager != address(0), "Not deployed");
