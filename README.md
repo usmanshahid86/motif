@@ -36,8 +36,8 @@ forge script script/BitDSMDeployer.s.sol:BitDSMDeployer \
 
 # Existing Holesky Testnet Deployment
 
-| Contract Name               | Holesky Address                                   | 
-| -------------               | -------------                                     |
+| Contract Name               | Holesky Address                                                                                                                 | 
+| -------------               | --------------------------------------------------------------------                                                            |
 | BodManager                  | [0x0f8f80B3c08672Aafc42484fca9ddbBF13cB73df](https://holesky.etherscan.io/address/0x0f8f80B3c08672Aafc42484fca9ddbBF13cB73df)   |
 | BodExample                  | [0x42c508D388e1f701e5C23a062D7073e5C642f24b](https://holesky.etherscan.io/address/0x42c508D388e1f701e5C23a062D7073e5C642f24b)   |
 | CDPContract                 | [0x1b44f151D36a6439fB2Cf3639242307c21238A29](https://holesky.etherscan.io/address/0x1b44f151D36a6439fB2Cf3639242307c21238A29)   |
