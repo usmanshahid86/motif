@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.12;
 
-import "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/interfaces/IERC1271Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 
@@ -27,14 +27,14 @@ library EIP1271SignatureUtils {
          * indicating their intention for this action
          * 2) if `signer` is a contract, then `signature` must will be checked according to EIP-1271
          */
-        if (Address.isContract(signer)) {
+        if (AddressUpgradeable.isContract(signer)) {
             require(
-                IERC1271(signer).isValidSignature(digestHash, signature) == EIP1271_MAGICVALUE,
+                IERC1271Upgradeable(signer).isValidSignature(digestHash, signature) == EIP1271_MAGICVALUE,
                 "EIP1271SignatureUtils.checkSignature_EIP1271: ERC1271 signature verification failed"
             );
         } else {
             require(
-                ECDSA.recover(digestHash, signature) == signer,
+                ECDSAUpgradeable.recover(digestHash, signature) == signer,
                 "EIP1271SignatureUtils.checkSignature_EIP1271: signature not from signer"
             );
         }
