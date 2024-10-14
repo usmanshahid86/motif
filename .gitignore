@@ -14,3 +14,5 @@ docs/
 .env
 # Ignore macOS .DS_Store files
 .DS_Store.env
+
+**/.DS_Store

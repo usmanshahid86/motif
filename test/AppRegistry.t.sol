@@ -9,10 +9,12 @@ contract AppRegistryTest is Test {
     AppRegistry public appRegistry;
     address public owner;
     address public app;
+    uint256 private signerPrivateKey;
 
     function setUp() public {
+        signerPrivateKey = vm.envUint("PRIVATE_KEY");
         owner = address(this);
-        app = address(0x123);
+        app = vm.addr(signerPrivateKey);
 
         appRegistry = new AppRegistry();
         appRegistry.initialize(owner);
@@ -23,7 +25,7 @@ contract AppRegistryTest is Test {
         uint256 expiry = block.timestamp + 1 hours;
 
         bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, salt, expiry);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(1, digestHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digestHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(app);
@@ -37,6 +39,7 @@ contract AppRegistryTest is Test {
         testRegisterApp();
 
         // Now deregister
+        vm.prank(owner);
         appRegistry.deregisterApp(app);
 
         assertFalse(appRegistry.isAppRegistered(app));
@@ -49,7 +52,7 @@ contract AppRegistryTest is Test {
         uint256 expiry = block.timestamp + 1 hours;
 
         bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, salt, expiry);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(1, digestHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digestHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert("AppRegistry: app already registered");
@@ -62,7 +65,7 @@ contract AppRegistryTest is Test {
         uint256 expiry = block.timestamp - 1; // Expired
 
         bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, salt, expiry);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(1, digestHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digestHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert("AppRegistry: signature expired");
@@ -70,4 +73,3 @@ contract AppRegistryTest is Test {
         appRegistry.registerApp(app, signature, salt, expiry);
     }
 }
-
