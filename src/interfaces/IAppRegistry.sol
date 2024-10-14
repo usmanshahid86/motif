@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 interface IAppRegistry {
     function registerApp(address app, bytes memory signature, bytes32 salt, uint256 expiry) external;
     function deregisterApp(address app) external;
