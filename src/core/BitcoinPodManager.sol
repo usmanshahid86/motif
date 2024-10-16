@@ -1,29 +1,101 @@
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../interfaces/IBitcoinPodManager.sol";
 import "../interfaces/IAppRegistry.sol";
+import "../interfaces/IBitDSMRegistry.sol";
+import "../interfaces/IBitcoinPod.sol";
 
-contract BitcoinPodManager is IBitcoinPodManager {
+contract BitcoinPodManager is 
+    Initializable, 
+    OwnableUpgradeable, 
+    PausableUpgradeable, 
+    ReentrancyGuardUpgradeable, 
+    IBitcoinPodManager 
+{
     IAppRegistry public appRegistry;
+    IBitDSMRegistry public bitDSMRegistry;
+    mapping(address => address) public userToPod;
+    mapping(address => address) public podToApp;
 
-    constructor(address _appRegistry) {
+    event PodCreated(address indexed user, address indexed pod, address indexed operator);
+    event PodDelegated(address indexed pod, address indexed appContract);
+    event PodUndelegated(address indexed pod);
+    event BitcoinMinted(address indexed pod, uint256 amount);
+    event BitcoinBurned(address indexed pod, uint256 amount);
+
+    function initialize(address _appRegistry, address _bitDSMRegistry) public initializer {
+        __Ownable_init();
+        __Pausable_init();
+        __ReentrancyGuard_init();
         appRegistry = IAppRegistry(_appRegistry);
+        bitDSMRegistry = IBitDSMRegistry(_bitDSMRegistry);
     }
 
-    function createPod(address strategy) external {
-        // Implementation of creating a pod
+    function createPod(address operator, bytes memory btcAddress) 
+        external 
+        whenNotPaused 
+        nonReentrant 
+    {
+        require(userToPod[msg.sender] == address(0), "User already has a pod");
+        require(bitDSMRegistry.isOperatorRegistered(operator), "Invalid operator");
+        
+        bytes memory operatorBtcPubKey = bitDSMRegistry.getOperatorBtcPublicKey(operator);
+        address newPod = address(new BitcoinPod(msg.sender, operator, operatorBtcPubKey, btcAddress, address(this)));
+        userToPod[msg.sender] = newPod;
+        
+        emit PodCreated(msg.sender, newPod, operator);
     }
 
-    function depositIntoPod(address pod, uint256 amount) external {
-        // Implementation of depositing into a pod
+    function delegatePod(address pod, address appContract) external whenNotPaused nonReentrant {
+        require(userToPod[msg.sender] == pod, "Not the pod owner");
+        require(appRegistry.isAppRegistered(appContract), "Invalid app contract");
+        require(podToApp[pod] == address(0), "Pod already delegated");
+        
+        podToApp[pod] = appContract;
+        emit PodDelegated(pod, appContract);
     }
 
-    function withdrawFromPod(address pod, uint256 amount) external {
-        // Implementation of withdrawing from a pod
+    function undelegatePod(address pod) external whenNotPaused nonReentrant {
+        require(userToPod[msg.sender] == pod, "Not the pod owner");
+        require(podToApp[pod] != address(0), "Pod not delegated");
+        
+        delete podToApp[pod];
+        emit PodUndelegated(pod);
     }
 
-    function liquidatePod(address pod) external {
-        // Implementation of liquidating a pod
+    function mintBitcoin(address pod, uint256 amount) external whenNotPaused nonReentrant {
+        IBitcoinPod bitcoinPod = IBitcoinPod(pod);
+        require(msg.sender == bitcoinPod.getOperator(), "Only operator can mint");
+        
+        bitcoinPod.mint(amount);
+        emit BitcoinMinted(pod, amount);
     }
 
+    function burnBitcoin(address pod, uint256 amount) external whenNotPaused nonReentrant {
+        IBitcoinPod bitcoinPod = IBitcoinPod(pod);
+        require(msg.sender == bitcoinPod.getOperator(), "Only operator can burn");
+        
+        bitcoinPod.burn(amount);
+        emit BitcoinBurned(pod, amount);
+    }
+
+    function lockPod(address pod) external whenNotPaused nonReentrant {
+        address appContract = podToApp[pod];
+        require(appContract != address(0), "Pod not delegated");
+        require(msg.sender == appContract, "Only delegated app can lock");
+        
+        IBitcoinPod(pod).lock();
+    }
+
+    function unlockPod(address pod) external whenNotPaused nonReentrant {
+        address appContract = podToApp[pod];
+        require(appContract != address(0), "Pod not delegated");
+        require(msg.sender == appContract, "Only delegated app can unlock");
+        
+        IBitcoinPod(pod).unlock();
+    }
 }
