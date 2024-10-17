@@ -155,4 +155,20 @@ contract BitcoinPodManagerTest is Test {
 
         vm.stopPrank();
     }
+
+    function testPodCreationAndOwnership() public {
+        // Register operator
+        vm.prank(operator);
+        bitDSMRegistry.registerOperator(operatorBtcPubKey);
+
+        // Create pod as user
+        vm.prank(user);
+        podManager.createPod(operator, userBtcAddress);
+
+        // Get the pod address
+        address podAddress = podManager.userToPod(user);
+
+        // Check if the pod address is a contract
+        assertTrue(podAddress.code.length > 0, "Pod address should be a contract");
+    }
 }
