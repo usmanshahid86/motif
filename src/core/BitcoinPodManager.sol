@@ -8,6 +8,7 @@ import "../interfaces/IBitcoinPodManager.sol";
 import "../interfaces/IAppRegistry.sol";
 import "../interfaces/IBitDSMRegistry.sol";
 import "../interfaces/IBitcoinPod.sol";
+import "./BitcoinPod.sol";
 
 contract BitcoinPodManager is 
     Initializable, 
@@ -69,17 +70,19 @@ contract BitcoinPodManager is
 
     function mintBitcoin(address pod, uint256 amount) external whenNotPaused nonReentrant {
         IBitcoinPod bitcoinPod = IBitcoinPod(pod);
-        require(msg.sender == bitcoinPod.getOperator(), "Only operator can mint");
+        address operator = bitcoinPod.getOperator();
+        require(msg.sender == operator, "Only operator can mint");
         
-        bitcoinPod.mint(amount);
+        bitcoinPod.mint(operator, amount);
         emit BitcoinMinted(pod, amount);
     }
 
     function burnBitcoin(address pod, uint256 amount) external whenNotPaused nonReentrant {
         IBitcoinPod bitcoinPod = IBitcoinPod(pod);
-        require(msg.sender == bitcoinPod.getOperator(), "Only operator can burn");
+        address operator = bitcoinPod.getOperator();
+        require(msg.sender == operator, "Only operator can burn");
         
-        bitcoinPod.burn(amount);
+        bitcoinPod.burn(operator, amount);
         emit BitcoinBurned(pod, amount);
     }
 
