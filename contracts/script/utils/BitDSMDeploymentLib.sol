@@ -53,7 +53,7 @@ library BitDSMDeploymentLib {
         );
         // Upgrade contracts
        bytes memory upgradeCall = abi.encodeCall(
-           ECDSAStakeRegistry.initialize, (result.bitDSMServiceManager, 1, quorum)
+           ECDSAStakeRegistry.initialize, (result.bitDSMServiceManager, 1, quorum, msg.sender/*initialOwner*/)
        );
        UpgradeableProxyLib.upgradeAndCall(result.stakeRegistry, stakeRegistryImpl, upgradeCall);
         
