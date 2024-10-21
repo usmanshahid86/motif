@@ -67,19 +67,6 @@ library BitDSMDeploymentLib {
 
      return result;
     }
-    
-    function updateStakeRegistryOwnership(
-        address proxyAdmin,
-        address newOwner
-    ) internal {
-        address stakeRegistry = 0x97985fb32db1e826c62c93e18e81fddec87b226a;
-        address stakeRegistryImpl = 0x50916b90f84f7aebfeeb22d872bc78f87853eeb3;
-        // Upgrade contracts
-       bytes memory upgradeCall = abi.encodeCall(
-           ECDSAStakeRegistry.transferOwnership, (newOwner)
-       );
-       UpgradeableProxyLib.upgradeAndCall(stakeRegistry, stakeRegistryImpl, upgradeCall);
-    }
 
     function readDeploymentJson(
         uint256 chainId

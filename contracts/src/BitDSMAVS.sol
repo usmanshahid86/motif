@@ -63,7 +63,7 @@ contract BitDSMAVS is
         address _avsDirectory,
         address _stakeRegistry,
         address _delegationManager,
-        address __rewardsCoordinator,
+        address _rewardsCoordinator,
         address _bodManager,
         address _cdpContract
     )
