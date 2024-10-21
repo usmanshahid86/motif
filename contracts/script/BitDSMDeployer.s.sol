@@ -73,17 +73,14 @@ contract BitDSMDeployer is Script, Utils {
 
         
         vm.startBroadcast(deployer);
-        //proxyAdmin = UpgradeableProxyLib.deployProxyAdmin();
+        proxyAdmin = UpgradeableProxyLib.deployProxyAdmin();
 
         //bitdsmDeployment =
-         //   BitDSMDeploymentLib.deployContracts(proxyAdmin, bodManagerAddress, cdpContractAddress, coreDeployment, quorum);
-        proxyAdmin = 0x81be55eec77bd51925fa17484d2d28559f350e37;
-        address newOwner = 0x64Ec1a3B2d7842Ec3c9C4D8D261D9D53afC70237;
-        BitDSMDeploymentLib.updateStakeRegistryOwnership(proxyAdmin, newOwner);
+           BitDSMDeploymentLib.deployContracts(proxyAdmin, bodManagerAddress, cdpContractAddress, coreDeployment, quorum);
         vm.stopBroadcast();
 
-       // verifyDeployment();
-       // BitDSMDeploymentLib.writeDeploymentJson(bitdsmDeployment);
+        verifyDeployment();
+        BitDSMDeploymentLib.writeDeploymentJson(bitdsmDeployment);
     }
 
     function deploy_bod_manager_and_create_bod() public {
