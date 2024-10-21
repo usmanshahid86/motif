@@ -1,11 +1,1 @@
-{
-  "lastUpdate": { "timestamp": "1728218724", "block_number": "2479039" },
-  "addresses": {
-    "proxyAdmin": "0xfe3e467cc703643aafe79ecb250f062b6964a020",
-    "BitDSMServiceManager": "0x9e09c22b6ffdbb35083966af90020214f52be16e",
-    "BitDSMServiceManagerImpl": "0xb301332d451918bd91d4b0fbaeff2d45d2ec5912",
-    "stakeRegistry": "0x75e9e52cbd55586aca2fe0c0de7f471b78b09fe9",
-    "stakeRegistryImpl": "0xf0de4f21eed29829b665a9ef7a91fcae9b39db25",
-    "wethStrategy": "0x00000000000000000000000000000000000001a4"
-  }
-}
+{"lastUpdate":{"timestamp":"1728972732","block_number":"2536500"},"addresses":{"proxyAdmin":"0x81be55eec77bd51925fa17484d2d28559f350e37","BitDSMServiceManager":"0xd52a4fa802368ec764083cc0fd2980762e735f73","BitDSMServiceManagerImpl":"0xee50df1e39c37a6d39118116a1fd10fb43753b40","stakeRegistry":"0x97985fb32db1e826c62c93e18e81fddec87b226a","stakeRegistryImpl":"0x50916b90f84f7aebfeeb22d872bc78f87853eeb3","wethStrategy":"0x7673a47463f80c6a3553db9e54c8cdcd5313d0ac"}}

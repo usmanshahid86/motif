@@ -49,18 +49,42 @@ library BitDSMDeploymentLib {
         address bitDSMServiceManagerImpl = address(
             new BitDSMAVS(
                 core.avsDirectory, result.stakeRegistry, core.delegationManager, bodManager, cdpContract
-            )
+           )
         );
         // Upgrade contracts
-        bytes memory upgradeCall = abi.encodeCall(
-            ECDSAStakeRegistry.initialize, (result.bitDSMServiceManager, 1, quorum)
-        );
-        UpgradeableProxyLib.upgradeAndCall(result.stakeRegistry, stakeRegistryImpl, upgradeCall);
-        UpgradeableProxyLib.upgrade(result.bitDSMServiceManager, bitDSMServiceManagerImpl);
-
+       bytes memory upgradeCall = abi.encodeCall(
+           ECDSAStakeRegistry.initialize, (result.bitDSMServiceManager, 1, quorum)
+       );
+       UpgradeableProxyLib.upgradeAndCall(result.stakeRegistry, stakeRegistryImpl, upgradeCall);
+        
+        // bytes memory upgradeCallBitDSM = abi.encodeCall(// pass the sender address
+        //     BitDSMAVS.initialize_base, (msg.sender, address(0)/* no rewards for now*/)  
+        // );
+        //UpgradeableProxyLib.upgrade(result.bitDSMServiceManager, bitDSMServiceManagerImpl);
+    
+    bytes memory bitDSMServiceManagerInitCall = abi.encodeCall(
+        BitDSMAVS.initialize, (
+            msg.sender, // Initial owner
+            address(0)
+        )
+    );
+    UpgradeableProxyLib.upgradeAndCall(result.bitDSMServiceManager, bitDSMServiceManagerImpl, bitDSMServiceManagerInitCall);
         result.wethStrategy = address(quorum.strategies[0].strategy);
 
-        return result;
+     return result;
+    }
+
+    function updateStakeRegistryOwnership(
+        address proxyAdmin,
+        address newOwner
+    ) internal {
+        address stakeRegistry = 0x97985fb32db1e826c62c93e18e81fddec87b226a;
+        address stakeRegistryImpl = 0x50916b90f84f7aebfeeb22d872bc78f87853eeb3;
+        // Upgrade contracts
+       bytes memory upgradeCall = abi.encodeCall(
+           ECDSAStakeRegistry.transferOwnership, (newOwner)
+       );
+       UpgradeableProxyLib.upgradeAndCall(stakeRegistry, stakeRegistryImpl, upgradeCall);
     }
 
     function readDeploymentJson(

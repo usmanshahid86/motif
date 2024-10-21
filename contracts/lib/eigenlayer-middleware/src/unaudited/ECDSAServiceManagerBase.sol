@@ -79,6 +79,13 @@ abstract contract ECDSAServiceManagerBase is
         _disableInitializers();
     }
 
+    // function initialize(
+    //     address initialOwner,
+    //     address _rewardsInitiator
+    // ) external initializer {
+    //     __ServiceManagerBase_init(initialOwner, _rewardsInitiator);
+    // }
+
     /**
      * @dev Initializes the base service manager by transferring ownership to the initial owner.
      * @param initialOwner The address to which the ownership of the contract will be transferred.

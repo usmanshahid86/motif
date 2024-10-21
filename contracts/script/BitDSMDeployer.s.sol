@@ -38,29 +38,52 @@ contract BitDSMDeployer is Script, Utils {
         vm.label(deployer, "Deployer");
 
         coreDeployment = CoreDeploymentLib.readDeploymentJson("deployments/core/", block.chainid);
-
-        quorum.strategies.push(
-            StrategyParams({strategy: IStrategy(address(420)), multiplier: 10_000})
+        // hard coding addresses for now 
+        bodManagerAddress = 0x0EAe257D92b0244F4239713c4980Fc15aC2052B8;
+        cdpContractAddress = 0xD77e13C8cA101da550D00A00Ca4FD6009398f8Ee;
+               // Hard coding Stretegies for now 
+        // equal weights assigned
+       // quorum.strategies.push(
+         //   StrategyParams({strategy: IStrategy(address(420)), multiplier: 10_000})
+        //);
+        
+        // quorum.strategies.push(
+        //     StrategyParams({strategy: IStrategy(address(0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3)), multiplier: 2_000}) //stETH
+        // );
+        //  quorum.strategies.push(
+        //     StrategyParams({strategy: IStrategy(address(0x3A8fBdf9e77DFc25d09741f51d3E181b25d0c4E0)), multiplier: 2_000}) //rETH
+        // );
+        //  quorum.strategies.push(
+        //     StrategyParams({strategy: IStrategy(address(0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9)), multiplier: 2_000}) //wETH
+        // );
+        //  quorum.strategies.push(
+        //     StrategyParams({strategy: IStrategy(address(0x05037A81BD7B4C9E0F7B430f1F2A22c31a2FD943)), multiplier: 2_000}) //lsETH
+        // );
+         quorum.strategies.push(
+            StrategyParams({strategy: IStrategy(address(0x7673a47463F80c6a3553Db9E54c8cDcd5313d0ac)), multiplier: 10_000}) //ankerETH
         );
+     
     }
 
     function run() external {
         //  deploying the BodManager / Bod / CDCP contract
-        vm.startBroadcast(deployer);
-        deploy_bod_manager_and_create_bod();
-        vm.stopBroadcast();
+       // vm.startBroadcast(deployer);
+       // deploy_bod_manager_and_create_bod();
+       // vm.stopBroadcast();
 
         
         vm.startBroadcast(deployer);
-        proxyAdmin = UpgradeableProxyLib.deployProxyAdmin();
+        //proxyAdmin = UpgradeableProxyLib.deployProxyAdmin();
 
-        bitdsmDeployment =
-            BitDSMDeploymentLib.deployContracts(proxyAdmin, bodManagerAddress, cdpContractAddress, coreDeployment, quorum);
-
+        //bitdsmDeployment =
+         //   BitDSMDeploymentLib.deployContracts(proxyAdmin, bodManagerAddress, cdpContractAddress, coreDeployment, quorum);
+        proxyAdmin = 0x81be55eec77bd51925fa17484d2d28559f350e37;
+        address newOwner = 0x64Ec1a3B2d7842Ec3c9C4D8D261D9D53afC70237;
+        BitDSMDeploymentLib.updateStakeRegistryOwnership(proxyAdmin, newOwner);
         vm.stopBroadcast();
 
-        verifyDeployment();
-        BitDSMDeploymentLib.writeDeploymentJson(bitdsmDeployment);
+       // verifyDeployment();
+       // BitDSMDeploymentLib.writeDeploymentJson(bitdsmDeployment);
     }
 
     function deploy_bod_manager_and_create_bod() public {

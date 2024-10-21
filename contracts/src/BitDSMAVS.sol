@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
-
+import {Initializable} from "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import {ECDSAServiceManagerBase} from
     "@eigenlayer-middleware/src/unaudited/ECDSAServiceManagerBase.sol";
 import {ECDSAStakeRegistry} from "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
 import {IServiceManager} from "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
+import {OwnableUpgradeable} from "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import {ECDSAUpgradeable} from
     "@openzeppelin-upgrades/contracts/utils/cryptography/ECDSAUpgradeable.sol";
 
@@ -16,7 +17,11 @@ import "./CDPContract.sol";
  */
 
 
-contract BitDSMAVS is ECDSAServiceManagerBase {
+contract BitDSMAVS is 
+    Initializable,
+    OwnableUpgradeable,
+    ECDSAServiceManagerBase 
+{
     using ECDSAUpgradeable for bytes32;
 
      /* STORAGE */
@@ -35,13 +40,13 @@ contract BitDSMAVS is ECDSAServiceManagerBase {
    // mapping(address => mapping(uint32 => bytes)) public allTaskResponses;
 
     /* MODIFIERS */
-   // modifier onlyOperator() {
-     //   require(
-       //     ECDSAStakeRegistry(stakeRegistry).operatorRegistered(msg.sender),
-         //   "Operator must be the caller"
-       // );
-       // _;
-   // }
+   modifier onlyOperator() {
+       require(
+           ECDSAStakeRegistry(stakeRegistry).operatorRegistered(msg.sender),
+           "Operator must be the caller"
+       );
+       _;
+   }
     mapping(uint32 => LockBitcoinTask) public lockBitcoinTasks;
 
     struct LockBitcoinTask {
@@ -71,6 +76,19 @@ contract BitDSMAVS is ECDSAServiceManagerBase {
         bodManager = BodManager(_bodManager);
         cdpContract = CDPContract(_cdpContract);
     }
+    function initialize(
+        address initialOwner,
+        address _rewardsInitiator
+    ) public initializer {
+        __Ownable_init();
+        __ServiceManagerBase_init(
+        initialOwner, _rewardsInitiator);
+    }
+ 
+    // function initialize_base(address initialOwner,
+    //     address _rewardsInitiator) public onlyInitializing {
+    //     __ServiceManagerBase_init(initialOwner, _rewardsInitiator);
+    // }
 
     /* FUNCTIONS */
     // NOTE: this function creates new task, assigns it a taskId
