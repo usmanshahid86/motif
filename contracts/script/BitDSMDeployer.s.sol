@@ -19,7 +19,7 @@ import {
 } from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
 
 // # To deploy and verify our contract
-// forge script script/HelloWorldDeployer.s.sol:HelloWorldDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
+// forge script script/BitDSMDeployer.s.sol:BitDSMDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
 contract BitDSMDeployer is Script, Utils {
     using CoreDeploymentLib for *;
     using UpgradeableProxyLib for address;
@@ -38,35 +38,36 @@ contract BitDSMDeployer is Script, Utils {
         vm.label(deployer, "Deployer");
 
         coreDeployment = CoreDeploymentLib.readDeploymentJson("deployments/core/", block.chainid);
-        // hard coding addresses for now 
+        
+        // Assuming the bodManager and cdpContractAddress is already deployed
+        // Initialize the contract addresses
         bodManagerAddress = 0x0EAe257D92b0244F4239713c4980Fc15aC2052B8;
         cdpContractAddress = 0xD77e13C8cA101da550D00A00Ca4FD6009398f8Ee;
-               // Hard coding Stretegies for now 
-        // equal weights assigned
-       // quorum.strategies.push(
-         //   StrategyParams({strategy: IStrategy(address(420)), multiplier: 10_000})
-        //);
-        
-        // quorum.strategies.push(
-        //     StrategyParams({strategy: IStrategy(address(0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3)), multiplier: 2_000}) //stETH
-        // );
-        //  quorum.strategies.push(
-        //     StrategyParams({strategy: IStrategy(address(0x3A8fBdf9e77DFc25d09741f51d3E181b25d0c4E0)), multiplier: 2_000}) //rETH
-        // );
-        //  quorum.strategies.push(
-        //     StrategyParams({strategy: IStrategy(address(0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9)), multiplier: 2_000}) //wETH
-        // );
-        //  quorum.strategies.push(
-        //     StrategyParams({strategy: IStrategy(address(0x05037A81BD7B4C9E0F7B430f1F2A22c31a2FD943)), multiplier: 2_000}) //lsETH
-        // );
-         quorum.strategies.push(
-            StrategyParams({strategy: IStrategy(address(0x7673a47463F80c6a3553Db9E54c8cDcd5313d0ac)), multiplier: 10_000}) //ankerETH
+
+        // Initialize restaking Strategies
+        // equal weights assigned. keep the sum_multiplier = 10,000
+        quorum.strategies.push(
+             StrategyParams({strategy: IStrategy(address(0x05037A81BD7B4C9E0F7B430f1F2A22c31a2FD943)), multiplier: 2_000}) //lsETH
+        ); 
+
+        quorum.strategies.push(
+             StrategyParams({strategy: IStrategy(address(0x3A8fBdf9e77DFc25d09741f51d3E181b25d0c4E0)), multiplier: 2_000}) //rETH
         );
+        quorum.strategies.push(
+             StrategyParams({strategy: IStrategy(address(0x7673a47463F80c6a3553Db9E54c8cDcd5313d0ac)), multiplier: 2_000}) //ankerETH
+        );        
+        quorum.strategies.push(
+             StrategyParams({strategy: IStrategy(address(0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3)), multiplier: 2_000}) //stETH
+        );
+        quorum.strategies.push(
+        StrategyParams({strategy: IStrategy(address(0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9)), multiplier: 2_000}) //wETH
+        );
+          
      
     }
 
     function run() external {
-        //  deploying the BodManager / Bod / CDCP contract
+        // deploying the BodManager / Bod / CDCP contract
        // vm.startBroadcast(deployer);
        // deploy_bod_manager_and_create_bod();
        // vm.stopBroadcast();
@@ -75,7 +76,7 @@ contract BitDSMDeployer is Script, Utils {
         vm.startBroadcast(deployer);
         proxyAdmin = UpgradeableProxyLib.deployProxyAdmin();
 
-        //bitdsmDeployment =
+        bitdsmDeployment =
            BitDSMDeploymentLib.deployContracts(proxyAdmin, bodManagerAddress, cdpContractAddress, coreDeployment, quorum);
         vm.stopBroadcast();
 
