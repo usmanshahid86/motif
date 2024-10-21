@@ -45,7 +45,8 @@ forge script script/BitDSMDeployer.s.sol:BitDSMDeployer \
 | BitDSMServiceManagerImpl    | [0xee50df1e39c37a6d39118116a1fd10fb43753b40](https://holesky.etherscan.io/address/0xee50df1e39c37a6d39118116a1fd10fb43753b40)   |   
 | stakeRegistry               | [0x97985fb32db1e826c62c93e18e81fddec87b226a](https://holesky.etherscan.io/address/0x97985fb32db1e826c62c93e18e81fddec87b226a)   |
 | stakeRegistryImpl           | [0x50916b90f84f7aebfeeb22d872bc78f87853eeb3](https://holesky.etherscan.io/address/0x50916b90f84f7aebfeeb22d872bc78f87853eeb3)   | 
-| ankerEth Strategy           | [0x7673a47463f80c6a3553db9e54c8cdcd5313d0ac]        |
+| ankerEth Strategy           | 0x7673a47463f80c6a3553db9e54c8cdcd5313d0ac          |
+
 Please see [Current Testnet Deployment](https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment) for additional deployed addresses of core EigenLayer contracts.
 
 
