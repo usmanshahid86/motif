@@ -9,7 +9,6 @@ import {console2} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 import {ECDSAStakeRegistry} from "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
-//import {HelloWorldServiceManager} from "../../src/HelloWorldServiceManager.sol";
 import {BitDSMAVS} from "../../src/BitDSMAVS.sol";
 import {IDelegationManager} from "@eigenlayer/contracts/interfaces/IDelegationManager.sol";
 import {Quorum} from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
@@ -56,11 +55,6 @@ library BitDSMDeploymentLib {
            ECDSAStakeRegistry.initialize, (result.bitDSMServiceManager, 1, quorum, msg.sender/*initialOwner*/)
        );
        UpgradeableProxyLib.upgradeAndCall(result.stakeRegistry, stakeRegistryImpl, upgradeCall);
-        
-        // bytes memory upgradeCallBitDSM = abi.encodeCall(// pass the sender address
-        //     BitDSMAVS.initialize_base, (msg.sender, address(0)/* no rewards for now*/)  
-        // );
-        //UpgradeableProxyLib.upgrade(result.bitDSMServiceManager, bitDSMServiceManagerImpl);
     
     bytes memory bitDSMServiceManagerInitCall = abi.encodeCall(
         BitDSMAVS.initialize, (
@@ -69,11 +63,11 @@ library BitDSMDeploymentLib {
         )
     );
     UpgradeableProxyLib.upgradeAndCall(result.bitDSMServiceManager, bitDSMServiceManagerImpl, bitDSMServiceManagerInitCall);
-        result.wethStrategy = address(quorum.strategies[0].strategy);
+    result.wethStrategy = address(quorum.strategies[4].strategy);
 
      return result;
     }
-
+    
     function updateStakeRegistryOwnership(
         address proxyAdmin,
         address newOwner
