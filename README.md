@@ -36,16 +36,16 @@ forge script script/BitDSMDeployer.s.sol:BitDSMDeployer \
 
 # Existing Holesky Testnet Deployment
 
-| Contract Name               | Holesky Address                                   | 
-| -------------               | -------------                                     |
-| BodManager                  | [0x0f8f80B3c08672Aafc42484fca9ddbBF13cB73df](https://holesky.etherscan.io/address/0x0f8f80B3c08672Aafc42484fca9ddbBF13cB73df)   |
+| Contract Name               | Holesky Address                                     | 
+| -------------               | -------------                                       |
+| BodManager                  | [0x0EAe257D92b0244F4239713c4980Fc15aC2052B8](https://holesky.etherscan.io/address/0x0EAe257D92b0244F4239713c4980Fc15aC2052B8)   |
 | BodExample                  | [0x42c508D388e1f701e5C23a062D7073e5C642f24b](https://holesky.etherscan.io/address/0x42c508D388e1f701e5C23a062D7073e5C642f24b)   |
-| CDPContract                 | [0x1b44f151D36a6439fB2Cf3639242307c21238A29](https://holesky.etherscan.io/address/0x1b44f151D36a6439fB2Cf3639242307c21238A29)   |
-| BitDSMAVS (ServiceManager)  | [0x9e09c22b6ffdbb35083966af90020214f52be16e](https://holesky.etherscan.io/address/0x9e09c22b6ffdbb35083966af90020214f52be16e)   |
-| BitDSMServiceManagerImpl    | [0xB301332d451918bd91D4b0FBAeff2d45d2ec5912](https://holesky.etherscan.io/address/0xb301332d451918bd91d4b0fbaeff2d45d2ec5912)   |   
-| stakeRegistry               | [0x75e9e52cbd55586aca2fe0c0de7f471b78b09fe9]()
-| stakeRegistryImpl           | [0xf0de4f21eed29829b665a9ef7a91fcae9b39db25]()
-
+| CDPContract                 | [0xD77e13C8cA101da550D00A00Ca4FD6009398f8Ee](https://holesky.etherscan.io/address/0xD77e13C8cA101da550D00A00Ca4FD6009398f8Ee)   |
+| BitDSMAVS (ServiceManager)  | [0xd52a4fa802368ec764083cc0fd2980762e735f73](https://holesky.etherscan.io/address/0xd52a4fa802368ec764083cc0fd2980762e735f73)   |
+| BitDSMServiceManagerImpl    | [0xee50df1e39c37a6d39118116a1fd10fb43753b40](https://holesky.etherscan.io/address/0xee50df1e39c37a6d39118116a1fd10fb43753b40)   |   
+| stakeRegistry               | [0x97985fb32db1e826c62c93e18e81fddec87b226a](https://holesky.etherscan.io/address/0x97985fb32db1e826c62c93e18e81fddec87b226a)   |
+| stakeRegistryImpl           | [0x50916b90f84f7aebfeeb22d872bc78f87853eeb3](https://holesky.etherscan.io/address/0x50916b90f84f7aebfeeb22d872bc78f87853eeb3)   | 
+| ankerEth Strategy           | [0x7673a47463f80c6a3553db9e54c8cdcd5313d0ac]        |
 Please see [Current Testnet Deployment](https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment) for additional deployed addresses of core EigenLayer contracts.
 
 
