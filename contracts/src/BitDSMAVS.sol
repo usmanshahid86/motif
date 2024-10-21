@@ -12,7 +12,7 @@ import {ECDSAUpgradeable} from
 import "./BodManager.sol";
 import "./CDPContract.sol";
 /**
- * @title Primary entrypoint for procuring services from HelloWorld.
+ * @title Primary entrypoint for procuring services from BitDSMAVS.
  * @author Eigen Labs, Inc.
  */
 
@@ -37,7 +37,7 @@ contract BitDSMAVS is
     // which is hashed onchain and checked against this mapping
     mapping(uint32 => bytes32) public allTaskHashes;
     // mapping of task indices to hash of abi.encode(taskResponse, taskResponseMetadata)
-   // mapping(address => mapping(uint32 => bytes)) public allTaskResponses;
+    mapping(address => mapping(uint32 => bytes)) public allTaskResponses;
 
     /* MODIFIERS */
    modifier onlyOperator() {
@@ -63,19 +63,21 @@ contract BitDSMAVS is
         address _avsDirectory,
         address _stakeRegistry,
         address _delegationManager,
+        address __rewardsCoordinator,
         address _bodManager,
         address _cdpContract
     )
         ECDSAServiceManagerBase(
             _avsDirectory,
             _stakeRegistry,
-            address(0), // hello-world doesn't need to deal with payments
+            _rewardsCoordinator,
             _delegationManager
         )
     {
         bodManager = BodManager(_bodManager);
         cdpContract = CDPContract(_cdpContract);
     }
+    // Initializes the rewardsInitiator address
     function initialize(
         address initialOwner,
         address _rewardsInitiator
@@ -85,10 +87,6 @@ contract BitDSMAVS is
         initialOwner, _rewardsInitiator);
     }
  
-    // function initialize_base(address initialOwner,
-    //     address _rewardsInitiator) public onlyInitializing {
-    //     __ServiceManagerBase_init(initialOwner, _rewardsInitiator);
-    // }
 
     /* FUNCTIONS */
     // NOTE: this function creates new task, assigns it a taskId
