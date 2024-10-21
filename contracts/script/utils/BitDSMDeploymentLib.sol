@@ -48,7 +48,7 @@ library BitDSMDeploymentLib {
         
         address bitDSMServiceManagerImpl = address(
             new BitDSMAVS(
-                core.avsDirectory, result.stakeRegistry, core.delegationManager, bodManager, cdpContract
+                core.avsDirectory, result.stakeRegistry, core.delegationManager, core.rewardsCoordinator, bodManager, cdpContract
            )
         );
         // Upgrade contracts
