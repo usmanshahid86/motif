@@ -13,13 +13,17 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     constructor(
         address _avsDirectory,
         address _stakeRegistry,
+        address _rewardsCoordinator,
         address _delegationManager
     ) ECDSAServiceManagerBase(
         _avsDirectory,
         _stakeRegistry,
-        address(0), // BitDSM doesn't need to deal with payments
+        _rewardsCoordinator,
         _delegationManager
     ) {}
+    function initialize(address _owner) public initializer {
+        __ServiceManagerBase_init(_owner, address(0));
+    } 
 
     function createNewTask(string memory name) external {
         Task memory newTask;

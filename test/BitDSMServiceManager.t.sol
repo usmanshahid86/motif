@@ -55,7 +55,8 @@ contract BitDSMServiceManagerTest is Test {
         serviceManager = new BitDSMServiceManager(
             address(mockAVSDirectory),
             address(mockStakeRegistry),
-            address(0) // mock delegation manager
+            address(0), // mock delegation manager
+            address(0) // mock rewards coordinator 
         );
     }
 
