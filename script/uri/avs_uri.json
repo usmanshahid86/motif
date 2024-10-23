@@ -2,6 +2,6 @@
   "name": "BitDSM AVS",
   "website": "https://holesky.eigenlayer.xyz/operator/0xeaef21ae3f6070ded1fd0865ed0c098ad7d11525",
   "description": "This is the test AVS implementation for BitDSM protocol on the Holesky Testnet",
-  "logo": "",
+  "logo": "https://github.com/hammadtq/BitDSM/blob/8071b04046dae3144e0b3739ef118ce25e9fc568/script/uri/bitdsm_cover.png",
   "twitter": "https://twitter.com/eigenlayer"
 }
