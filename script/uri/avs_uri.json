@@ -1,7 +1,7 @@
 {
   "name": "BitDSM AVS",
-  "website": "https://holesky.eigenlayer.xyz/operator/0xeaef21ae3f6070ded1fd0865ed0c098ad7d11525",
-  "description": "This is the test AVS implementation for BitDSM protocol on the Holesky Testnet",
-  "logo": "https://github.com/hammadtq/BitDSM/blob/8071b04046dae3144e0b3739ef118ce25e9fc568/script/uri/bitdsm_cover.png",
+  "website": "https://bitdsm.org/",
+  "description": "BitDSM brings a new era of Bitcoin integration by enabling native, non-custodial delegation directly to Ethereum applications. At the core are BitcoinPods (BODs), inspired by EigenPods in EigenLayer, allowing smart contracts to execute slashing logic directly on native Bitcoin addresses. This bridgeless approach transforms Bitcoin into a versatile asset for financial activities, from Liquid Staking Tokens and lending to stablecoins and enhanced AVS security.",
+  "logo": "https://raw.githubusercontent.com/hammadtq/BitDSM/3dfdba9661d6cecaea53d01d81bc558047cde3f2/script/uri/bitdsm_cover.png",
   "twitter": "https://twitter.com/eigenlayer"
 }
