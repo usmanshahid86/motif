@@ -166,7 +166,7 @@ contract DeployBitDSM is Script {
         );
        
        
-       // serviceManager.updateAVSMetadataURI(metadataUri);
+       serviceManager.updateAVSMetadataURI(metadataUri);
 
         vm.stopBroadcast();
 
