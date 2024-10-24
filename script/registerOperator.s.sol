@@ -9,25 +9,29 @@ import {IRewardsCoordinator} from "@eigenlayer/src/contracts/interfaces/IRewards
 import {ECDSAStakeRegistry} from "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
 import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
 
-contract TestBitDSMServiceManager is Script {
+
+//@NOTE Script to register an operator to AVS deployed on Holesky. Assuming the operator is already registered with EigenLayer
+//@NOTE Register Operatoe with EigenLayer using https://docs.eigenlayer.xyz/eigenlayer/operator-guides/operator-installation
+
+contract RegisterOperator is Script {
     using ECDSA for bytes32;
     
     IAVSDirectory public avsDirectory;
     IDelegationManager public delegationManager;
-     ECDSAStakeRegistry public stakeRegistry;
+    ECDSAStakeRegistry public stakeRegistry;
     BitDSMServiceManager public serviceManager;
 
     address public client;
-    address public operator1;
-    uint256 private operator1PrivateKey;
+    address public operatorEigen;
+    uint256 private operatorEigenPrivateKey;
 
   function _loadDeployedContractAddresses(string memory targetEnv) internal {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script/eigenlayer_addresses.json");
-        string memory json = vm.readFile(path);
+        string memory pathEigen = string.concat(root, "/script/eigenlayer_addresses.json");
+        string memory jsonEigen = vm.readFile(pathEigen);
 
-        avsDirectory = IAVSDirectory(json.readAddress(string(abi.encodePacked(".", targetEnv, ".avsDirectory"))));
-        delegationManager = IDelegationManager(json.readAddress(string(abi.encodePacked(".", targetEnv, ".delegationManager"))));
+        avsDirectory = IAVSDirectory(jsonEigen.readAddress(string(abi.encodePacked(".", targetEnv, ".avsDirectory"))));
+        delegationManager = IDelegationManager(jsonEigen.readAddress(string(abi.encodePacked(".", targetEnv, ".delegationManager"))));
 
         string memory path_avs = string.concat(root, "/script/bitdsm_addresses.json");
         string memory jsonAVS = vm.readFile(path);
@@ -36,32 +40,35 @@ contract TestBitDSMServiceManager is Script {
         serviceManager = BitDSMServiceManager(jsonAVS.readAddress(string(abi.encodePacked(".", "BitDSMServiceManagerProxy"))));
   }
 
-
-
     function run() external {
         // Load the client private key
         uint256 clientPrivateKey = vm.envUint("CLIENT_PRIVATE_KEY");
         client = vm.addr(clientPrivateKey);
+        
+        // Transaction to test New task creation on BitDSMServiceManager
         // Start broadcasting transactions
         vm.startBroadcast(clientPrivateKey);
-
         // Set contract address and ABI (if needed)
         BitDSMServiceManager bitDSMServiceManager = BitDSMServiceManager(serviceManager);
-
         // Test the createNewTask function
         bitDSMServiceManager.createNewTask("Test Task");
-
         // End broadcasting transactions
         vm.stopBroadcast();
-        // register Operator to EigenLayer and AVS
-        operator1PrivateKey = vm.envUint("OPERATOR_PRIVATE_KEY");
+
+
+        // register Operator to AVS
+        // Need The operator's private key registered with EigenLayer to send the transaction 
+        operatorPrivateKey = vm.envUint("OPERATOR_PRIVATE_KEY");
         operator1 = vm.addr(operator1PrivateKey);
-        OperatorDetails memory operatorDetails = OperatorDetails({
-            operator: operator1,
-            avs: address(0),
-            weight: 1000,
-            expiry: block.timestamp + 1000
-        });
         
+        // Load operator signing key. This key will be used for signing the tasks
+        uint256 private opedratorSigningPrivateKey = vm.envUint("OPERATOR_SIGNING_PRIVATE_KEY");
+        address public operatorSigning = vm.addr(operatorSigningPrivateKey);
+
+        vm.log("Registering Operator to AVS"); 
+        vm.Log(operatorPrivateKey);
+        vm.log(operator1);
+        vm.log(operatorSigning);
+        vm.log(operatorSigningPrivateKey);
     }
 }
