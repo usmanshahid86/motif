@@ -4,7 +4,7 @@ pragma solidity ^0.8.12;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 import {IAVSDirectory} from "@eigenlayer/src/contracts/interfaces/IAVSDirectory.sol";
-import {IDelegationManager} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
+import {IDelegationManager, OperatorDetails} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
 import {IRewardsCoordinator} from "@eigenlayer/src/contracts/interfaces/IRewardsCoordinator.sol";
 import {ECDSAStakeRegistry} from "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
 import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
@@ -51,11 +51,17 @@ contract TestBitDSMServiceManager is Script {
         // Test the createNewTask function
         bitDSMServiceManager.createNewTask("Test Task");
 
+        // End broadcasting transactions
+        vm.stopBroadcast();
         // register Operator to EigenLayer and AVS
         operator1PrivateKey = vm.envUint("OPERATOR_PRIVATE_KEY");
         operator1 = vm.addr(operator1PrivateKey);
-
-        // End broadcasting transactions
-        vm.stopBroadcast();
+        OperatorDetails memory operatorDetails = OperatorDetails({
+            operator: operator1,
+            avs: address(0),
+            weight: 1000,
+            expiry: block.timestamp + 1000
+        });
+        
     }
 }
