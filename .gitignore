@@ -20,3 +20,15 @@ docs/
 
 # Ignore node_modules
 node_modules/
+
+# Ignore built output
+dist/
+
+# Ignore editor-specific files
+.vscode/
+.idea/
+
+# Ignore TypeScript build artifacts
+dist/**/*.js
+dist/*.js.map
+dist/*.d.ts

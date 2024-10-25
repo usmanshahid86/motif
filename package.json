@@ -2,6 +2,7 @@
   "name": "bitdsm-avs",
   "version": "1.0.0",
   "main": "index.js",
+ 
   "scripts": {
     "start:operator": "ts-node operator/index.ts",
     "start:traffic": "ts-node operator/createNewTasks.ts",

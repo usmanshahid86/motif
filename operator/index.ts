@@ -3,7 +3,9 @@
 // run this using ts-node operator/index.ts
 
 import { ethers } from "ethers";
+//const { ethers } = require("ethers");
 import * as dotenv from "dotenv";
+//const dotenv = require("dotenv");
 const fs = require('fs');
 const path = require('path');
 dotenv.config();
@@ -17,7 +19,7 @@ if (!Object.keys(process.env).length) {
 // Use RPC_URL for connecting to Holesky testnet
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
-const uri = new URL(process.env.OPERATOR_URI!);
+const uri = new String(process.env.Operator_URI!);
 let chainId = 17000;
 
 // Load deployment data
@@ -27,13 +29,14 @@ const coreDeploymentData = JSON.parse(
     "utf8"
   )
 );
-const avsDeploymentData = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../bitdsm_addresses.json`), 'utf8'));
+const avsDeploymentData = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../script/bitdsm_addresses.json`), 'utf8'));
 
 
 const delegationManagerAddress = coreDeploymentData.holesky.delegationManager; 
 const avsDirectoryAddress = coreDeploymentData.holesky.avsDirectory;
+
 const bitDSMServiceManagerAddress = avsDeploymentData.BitDSMServiceManagerProxy;
-const ecdsaStakeRegistryAddress = avsDeploymentData.stakeRegistryProxy;
+const ecdsaStakeRegistryAddress = avsDeploymentData.ECDSAStakeRegistryProxy;
 
 
 
