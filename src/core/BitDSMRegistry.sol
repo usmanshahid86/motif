@@ -1,37 +1,49 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/IBitDSMRegistry.sol";
 
-contract BitDSMRegistry is Initializable, OwnableUpgradeable, PausableUpgradeable, IBitDSMRegistry {
+contract BitDSMRegistry is ECDSAStakeRegistry, PausableUpgradeable, IBitDSMRegistry {
     mapping(address => bytes) private operatorToBtcPublicKey;
 
-    function initialize(address initialOwner) public initializer {
-        __Ownable_init();
-        transferOwnership(initialOwner);
+    constructor(IDelegationManager _delegationManager) ECDSAStakeRegistry(_delegationManager) {}
+
+    function initialize(
+        address _serviceManager,
+        uint256 _thresholdWeight,
+        Quorum memory _quorum
+    ) public initializer {
+        __ECDSAStakeRegistry_init(_serviceManager, _thresholdWeight, _quorum);
         __Pausable_init();
     }
 
-    function registerOperator(bytes calldata btcPublicKey) external whenNotPaused {
-        require(btcPublicKey.length == 33, "Invalid Bitcoin public key length");
-        require(operatorToBtcPublicKey[msg.sender].length == 0, "Operator already registered");
-
-        operatorToBtcPublicKey[msg.sender] = btcPublicKey;
-        emit OperatorRegistered(msg.sender, btcPublicKey);
+    function registerOperatorWithSignature(
+        ISignatureUtils.SignatureWithSaltAndExpiry memory _operatorSignature,
+        address _signingKey,
+        bytes calldata btcPublicKey
+    ) external whenNotPaused {
+        super.registerOperatorWithSignature(_operatorSignature, _signingKey);
+        _registerBtcPublicKey(msg.sender, btcPublicKey);
     }
 
-    function deregisterOperator() external {
-        require(operatorToBtcPublicKey[msg.sender].length > 0, "Operator not registered");
+    function _registerBtcPublicKey(address operator, bytes calldata btcPublicKey) internal {
+        require(btcPublicKey.length == 33, "Invalid Bitcoin public key length");
+        require(operatorToBtcPublicKey[operator].length == 0, "BTC public key already registered");
 
+        operatorToBtcPublicKey[operator] = btcPublicKey;
+        emit OperatorRegistered(operator, btcPublicKey);
+    }
+
+    function deregisterOperator() external override(ECDSAStakeRegistry, IBitDSMRegistry) {
+        super.deregisterOperator();
         delete operatorToBtcPublicKey[msg.sender];
         emit OperatorDeregistered(msg.sender);
     }
 
-    function isOperatorRegistered(address operator) external view returns (bool) {
-        return operatorToBtcPublicKey[operator].length > 0;
+    function isOperatorRegistered(address operator) public view override(ECDSAStakeRegistry, IBitDSMRegistry) returns (bool) {
+        return super.isOperatorRegistered(operator) && operatorToBtcPublicKey[operator].length > 0;
     }
 
     function getOperatorBtcPublicKey(address operator) external view returns (bytes memory) {
@@ -47,4 +59,3 @@ contract BitDSMRegistry is Initializable, OwnableUpgradeable, PausableUpgradeabl
         _unpause();
     }
 }
-
