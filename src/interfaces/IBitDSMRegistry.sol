@@ -4,7 +4,7 @@ pragma solidity ^0.8.12;
 import "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
 import "@eigenlayer/src/contracts/interfaces/ISignatureUtils.sol";
 
-interface IBitDSMRegistry is IECDSAStakeRegistryEventsAndErrors {
+interface IBitDSMRegistry is ECDSAStakeRegistryEventsAndErrors {
     event OperatorRegistered(address indexed operator, bytes btcPublicKey);
     event OperatorDeregistered(address indexed operator);
 

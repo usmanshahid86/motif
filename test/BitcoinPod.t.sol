@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "forge-std/Test.sol";
-import "../src/core/BitDSMRegistry.sol";
-import "../src/core/BitcoinPodManager.sol";
-import "../src/core/BitcoinPod.sol";
+import {Test} from "forge-std/Test.sol";
+import {BitDSMRegistry} from "../src/core/BitDSMRegistry.sol";
+import {BitcoinPodManager} from "../src/core/BitcoinPodManager.sol";
+import {BitcoinPod} from "../src/core/BitcoinPod.sol";
 import {AppRegistry} from "../src/core/AppRegistry.sol";
 
 contract BitcoinPodManagerTest is Test {

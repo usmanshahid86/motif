@@ -7,7 +7,8 @@ import "../interfaces/IBitDSMRegistry.sol";
 
 contract BitDSMRegistry is ECDSAStakeRegistry, PausableUpgradeable, IBitDSMRegistry {
     mapping(address => bytes) private operatorToBtcPublicKey;
-
+    mapping(address => bool) private _operatorRegistered;
+    
     constructor(IDelegationManager _delegationManager) ECDSAStakeRegistry(_delegationManager) {}
 
     function initialize(
@@ -19,31 +20,32 @@ contract BitDSMRegistry is ECDSAStakeRegistry, PausableUpgradeable, IBitDSMRegis
         __Pausable_init();
     }
 
+    // This function is already virtual in the parent contract
+    function _registerOperatorWithSig(
+        address _operator,
+        ISignatureUtils.SignatureWithSaltAndExpiry memory _operatorSignature,
+        address _signingKey
+    ) internal virtual override {
+        super._registerOperatorWithSig(_operator, _operatorSignature, _signingKey);
+        // Add our custom logic here
+        emit OperatorRegistered(_operator, operatorToBtcPublicKey[_operator]);
+    }
+
     function registerOperatorWithSignature(
         ISignatureUtils.SignatureWithSaltAndExpiry memory _operatorSignature,
-        address _signingKey,
-        bytes calldata btcPublicKey
-    ) external whenNotPaused {
-        super.registerOperatorWithSignature(_operatorSignature, _signingKey);
-        _registerBtcPublicKey(msg.sender, btcPublicKey);
+        address _signingKey
+    ) external override {
+        _registerOperatorWithSig(msg.sender, _operatorSignature, _signingKey);
     }
 
-    function _registerBtcPublicKey(address operator, bytes calldata btcPublicKey) internal {
-        require(btcPublicKey.length == 33, "Invalid Bitcoin public key length");
-        require(operatorToBtcPublicKey[operator].length == 0, "BTC public key already registered");
-
-        operatorToBtcPublicKey[operator] = btcPublicKey;
-        emit OperatorRegistered(operator, btcPublicKey);
-    }
-
+    // For non-virtual functions, we create new functions with different names
     function deregisterOperator() external override(ECDSAStakeRegistry, IBitDSMRegistry) {
-        super.deregisterOperator();
-        delete operatorToBtcPublicKey[msg.sender];
-        emit OperatorDeregistered(msg.sender);
+        // Instead of calling the contract directly, use the parent contract's implementation
+        ECDSAStakeRegistry.deregisterOperator.call();
     }
 
-    function isOperatorRegistered(address operator) public view override(ECDSAStakeRegistry, IBitDSMRegistry) returns (bool) {
-        return super.isOperatorRegistered(operator) && operatorToBtcPublicKey[operator].length > 0;
+    function isOperatorRegistered(address operator) public view returns (bool) {
+        return _operatorRegistered[operator] && operatorToBtcPublicKey[operator].length > 0;
     }
 
     function getOperatorBtcPublicKey(address operator) external view returns (bytes memory) {

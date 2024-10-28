@@ -3,9 +3,11 @@ pragma solidity ^0.8.12;
 
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
+import {stdJson} from "forge-std/StdJson.sol";
 
 import {IAVSDirectory} from "@eigenlayer/src/contracts/interfaces/IAVSDirectory.sol";
 import {IDelegationManager} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
+import {IRewardsCoordinator} from "@eigenlayer/src/contracts/interfaces/IRewardsCoordinator.sol";
 import {ECDSAStakeRegistry} from "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
 import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
 import {AppRegistry} from "../src/core/AppRegistry.sol";
@@ -14,11 +16,12 @@ import {BitDSMRegistry} from "../src/core/BitDSMRegistry.sol";
 
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Quorum, StrategyParams, IStrategy} from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
 
 contract DeployBitDSM is Script {
-    using UpgradeableProxyLib for address;
+    using stdJson for string;
+    using Strings for *;
 
     uint256 deployerPrivateKey;
     address deployer;
@@ -72,12 +75,12 @@ contract DeployBitDSM is Script {
         );
         appRegistry = AppRegistry(address(appRegistryProxy));
 
-        // Deploy BitDSMRegistry
+        // Deploy BitDSMRegistry implementation first (without initializing)
         BitDSMRegistry bitDSMRegistryImpl = new BitDSMRegistry(delegationManager);
         TransparentUpgradeableProxy bitDSMRegistryProxy = new TransparentUpgradeableProxy(
             address(bitDSMRegistryImpl),
             address(proxyAdmin),
-            abi.encodeCall(BitDSMRegistry.initialize, (address(serviceManagerProxy), thresholdWeight, quorum))
+            "" // Empty initialization data for now
         );
         bitDSMRegistry = BitDSMRegistry(address(bitDSMRegistryProxy));
 
@@ -103,7 +106,7 @@ contract DeployBitDSM is Script {
             abi.encodeWithSelector(BitDSMServiceManager.initialize.selector, deployer)
         );
 
-        // Initialize the BitDSMRegistry
+        // Now initialize the BitDSMRegistry with the serviceManagerProxy address
         BitDSMRegistry(address(bitDSMRegistryProxy)).initialize(
             address(serviceManagerProxy),
             thresholdWeight,

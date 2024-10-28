@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IBitcoinPod.sol";
 
-contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
+contract BitcoinPod is IBitcoinPod, Ownable {
     address public operator;
     bytes public operatorBtcPubKey;
     bytes public bitcoinAddress;

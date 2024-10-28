@@ -8,3 +8,6 @@
 	path = lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware.git
 	tag = v0.2.1-holesky-rewards
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
