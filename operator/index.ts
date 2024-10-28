@@ -19,7 +19,7 @@ if (!Object.keys(process.env).length) {
 // Use RPC_URL for connecting to Holesky testnet
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
-const uri = new String(process.env.Operator_URI!);
+const uri = process.env.Operator_URI;
 let chainId = 17000;
 
 // Load deployment data
@@ -78,57 +78,72 @@ const signAndRespondToTask = async (taskIndex: number, taskCreatedBlock: number,
 };
 
 const registerOperator = async () => {
-    
     // Registers as an Operator in EigenLayer.
-    try {
-        const tx1 = await delegationManager.registerAsOperator({
-            __deprecated_earningsReceiver: await wallet.address,
-            delegationApprover: "0x0000000000000000000000000000000000000000",
-            stakerOptOutWindowBlocks: 0
-        }, uri);
-        await tx1.wait();
-        console.log("Operator registered to Core EigenLayer contracts");
-    } catch (error) {
-        console.error("Error in registering as operator:", error);
+    const registered_operator = await delegationManager.isOperator(wallet.address);
+    if (registered_operator) {
+      console.log("Operator already registered to Core EigenLayer contracts");
     }
+    else {
+        console.log("Registering Operator to EigenLayer contracts");
+        try {
+            const tx1 = await delegationManager.registerAsOperator({
+                __deprecated_earningsReceiver: await wallet.address,
+                delegationApprover: "0x0000000000000000000000000000000000000000",
+                stakerOptOutWindowBlocks: 0
+            }, uri);
+            await tx1.wait();
+            console.log("Operator registered to Core EigenLayer contracts");
+        } catch (error) {
+            console.error("Error in registering as operator:", error);
+            // terminate execution
+            process.exit(1);
+        }
+    }
+    // check if operator is already registered to AVS
+    const registered_operator_avs =
+      await ecdsaRegistryContract.operatorRegistered(wallet.address);
+    if (registered_operator_avs) {
+        console.log("Operator already registered to AVS");
+        return;
+    }
+    else {
+        const salt = ethers.hexlify(ethers.randomBytes(32));
+        const expiry = Math.floor(Date.now() / 1000) + 3600; // Example expiry, 1 hour from now
+
+        // prepare to register operator to AVS
+        let operatorSignatureWithSaltAndExpiry = {
+            signature: "",
+            salt: salt,
+            expiry: expiry
+        };
+
+        // Calculate the digest hash, which is a unique value representing the operator, avs, unique value (salt) and expiration date.
+        const operatorDigestHash = await avsDirectory.calculateOperatorAVSRegistrationDigestHash(
+            wallet.address,
+            await bitDSMServiceManager.getAddress(),
+            salt,
+            expiry
+        );
     
-    const salt = ethers.hexlify(ethers.randomBytes(32));
-    const expiry = Math.floor(Date.now() / 1000) + 3600; // Example expiry, 1 hour from now
+        // Sign the digest hash with the operator's private key
+        console.log("Signing digest hash with operator's private key");
+        const operatorSigningKey = new ethers.SigningKey(process.env.PRIVATE_KEY!);
+        const operatorSignedDigestHash = operatorSigningKey.sign(operatorDigestHash);
 
-   // prepare to register operator to AVS
-    // Define the output structure
-    let operatorSignatureWithSaltAndExpiry = {
-        signature: "",
-        salt: salt,
-        expiry: expiry
-    };
+        // Encode the signature in the required format
+        operatorSignatureWithSaltAndExpiry.signature = ethers.Signature.from(operatorSignedDigestHash).serialized;
 
-    // Calculate the digest hash, which is a unique value representing the operator, avs, unique value (salt) and expiration date.
-    const operatorDigestHash = await avsDirectory.calculateOperatorAVSRegistrationDigestHash(
-        wallet.address, 
-        await bitDSMServiceManager.getAddress(), 
-        salt, 
-        expiry
-    );
+        console.log("Registering Operator to AVS Registry contract");
     
-    // Sign the digest hash with the operator's private key
-    console.log("Signing digest hash with operator's private key");
-    const operatorSigningKey = new ethers.SigningKey(process.env.PRIVATE_KEY!);
-    const operatorSignedDigestHash = operatorSigningKey.sign(operatorDigestHash);
-
-    // Encode the signature in the required format
-    operatorSignatureWithSaltAndExpiry.signature = ethers.Signature.from(operatorSignedDigestHash).serialized;
-
-    console.log("Registering Operator to AVS Registry contract");
-    
-    // Register Operator to AVS
-    // Per release here: https://github.com/Layr-Labs/eigenlayer-middleware/blob/v0.2.1-mainnet-rewards/src/unaudited/ECDSAStakeRegistry.sol#L49
-    const tx2 = await ecdsaRegistryContract.registerOperatorWithSignature(
-       operatorSignatureWithSaltAndExpiry,
-       wallet.address
-    );
-    await tx2.wait();
-    console.log("Operator registered on AVS successfully");
+        // Register Operator to AVS
+        // Per release here: https://github.com/Layr-Labs/eigenlayer-middleware/blob/v0.2.1-mainnet-rewards/src/unaudited/ECDSAStakeRegistry.sol#L49
+        const tx2 = await ecdsaRegistryContract.registerOperatorWithSignature(
+            operatorSignatureWithSaltAndExpiry,
+            wallet.address
+        );
+        await tx2.wait();
+        console.log("Operator registered on AVS successfully");
+    }
 };
 
 const monitorNewTasks = async () => {
