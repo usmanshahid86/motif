@@ -7,7 +7,6 @@ import "forge-std/console.sol";
 import {IAVSDirectory} from "@eigenlayer/src/contracts/interfaces/IAVSDirectory.sol";
 import {IDelegationManager} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
 import {IRewardsCoordinator} from "@eigenlayer/src/contracts/interfaces/IRewardsCoordinator.sol";
-import {ECDSAStakeRegistry} from "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
 import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
 import {AppRegistry} from "../src/core/AppRegistry.sol";
 import {BitcoinPodManager} from "../src/core/BitcoinPodManager.sol";
@@ -34,11 +33,11 @@ contract DeployBitDSM is Script {
     IDelegationManager public delegationManager;
     IRewardsCoordinator public rewardsCoordinator;
     
-    ECDSAStakeRegistry public stakeRegistry;
+   // ECDSAStakeRegistry public stakeRegistry;
     BitDSMServiceManager public serviceManager;
 
     Quorum quorum;
-    uint256 thresholdWeight = 1000;
+    uint256 thresholdWeight = 1;
 
     AppRegistry public appRegistry;
     BitcoinPodManager public bitcoinPodManager;
@@ -83,12 +82,13 @@ contract DeployBitDSM is Script {
                 multiplier: multiplier
             });
             quorum.strategies.push(strategyParam);
-    }
+        }
     }
 
     function run(string memory network, string memory metadataUri) external {
         deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         deployer = vm.addr(deployerPrivateKey);
+        
         //Load Eigenlayer addresses for network
         _loadEigenlayerAddresses(network);
         
@@ -106,15 +106,6 @@ contract DeployBitDSM is Script {
         );
         appRegistry = AppRegistry(address(appRegistryProxy));
 
-        // Deploy BitDSMRegistry
-        BitDSMRegistry bitDSMRegistryImpl = new BitDSMRegistry();
-        TransparentUpgradeableProxy bitDSMRegistryProxy = new TransparentUpgradeableProxy(
-            address(bitDSMRegistryImpl),
-            address(proxyAdmin),
-            abi.encodeCall(BitDSMRegistry.initialize, (deployer))
-        );
-        bitDSMRegistry = BitDSMRegistry(address(bitDSMRegistryProxy));
-
         // Deploy BitcoinPodManager
         BitcoinPodManager bitcoinPodManagerImpl = new BitcoinPodManager();
         TransparentUpgradeableProxy bitcoinPodManagerProxy = new TransparentUpgradeableProxy(
@@ -123,19 +114,19 @@ contract DeployBitDSM is Script {
             abi.encodeCall(BitcoinPodManager.initialize, (address(appRegistry), address(bitDSMRegistry)))
         );
         bitcoinPodManager = BitcoinPodManager(address(bitcoinPodManagerProxy));
-
-        // Deploy ECDSAStakeRegistry
-        ECDSAStakeRegistry stakeRegistryImpl = new ECDSAStakeRegistry(delegationManager);
-        TransparentUpgradeableProxy stakeRegistryProxy = new TransparentUpgradeableProxy(
-            address(stakeRegistryImpl),
+        
+        // Deploy BitDSMRegistry inherited from ECDSAStakeRegistry
+        BitDSMRegistry bitDSMRegistryImpl = new BitDSMRegistry(delegationManager);
+        TransparentUpgradeableProxy bitDSMRegistryProxy = new TransparentUpgradeableProxy(
+            address(bitDSMRegistryImpl),
             address(proxyAdmin),
             ""
         );
-
+       
         // Deploy BitDSMServiceManager
         BitDSMServiceManager serviceManagerImpl = new BitDSMServiceManager(
             address(avsDirectory),
-            address(stakeRegistryProxy),
+            address(bitDSMRegistryProxy),
             address(rewardsCoordinator),
             address(delegationManager)
         );
@@ -145,19 +136,19 @@ contract DeployBitDSM is Script {
             address(proxyAdmin),
             abi.encodeWithSelector(BitDSMServiceManager.initialize.selector, deployer)
         );
-        // Initialize StakeRegistry
-        ECDSAStakeRegistry(address(stakeRegistryProxy)).initialize(
+        // Initialize bitDSMRegistry
+        BitDSMRegistry(address(bitDSMRegistryProxy)).initialize(
             address(serviceManagerProxy),
             thresholdWeight,
             quorum
         );
-        stakeRegistry = ECDSAStakeRegistry(address(stakeRegistryProxy));
+        bitDSMRegistry = BitDSMRegistry(address(bitDSMRegistryProxy));
 
         serviceManager = BitDSMServiceManager(address(serviceManagerProxy));
        
        // check the owner of the contracts
        require(
-            stakeRegistry.owner() == address(deployer),
+            bitDSMRegistry.owner() == address(deployer),
             "Owner of ECDSAStakeRegistry is not the deployer"
         );
         require(
@@ -174,7 +165,7 @@ contract DeployBitDSM is Script {
         console.log("AppRegistry Proxy: ", address(appRegistry));
         console.log("BitDSMRegistry Proxy: ", address(bitDSMRegistry));
         console.log("BitcoinPodManager Proxy: ", address(bitcoinPodManager));
-        console.log("ECDSAStakeRegistry Proxy: ", address(stakeRegistryProxy));
+       // console.log("ECDSAStakeRegistry Proxy: ", address(stakeRegistryProxy));
         console.log("BitDSMServiceManager Proxy: ", address(serviceManagerProxy));
         
         // verify deployment
@@ -184,9 +175,9 @@ contract DeployBitDSM is Script {
     }
 
     function _verifyDeployment() internal view {
-        require(
-            address(stakeRegistry)!= address(0), "StakeRegistry address cannot be zero"
-        );
+      //  require(
+        //    address(stakeRegistry)!= address(0), "StakeRegistry address cannot be zero"
+       // );
         require(
             address(serviceManager) != address(0),
             "BitDSMServiceManager address cannot be zero"
@@ -219,9 +210,9 @@ contract DeployBitDSM is Script {
             "\"BitcoinPodManagerProxy\": \"",
             address(bitcoinPodManager).toHexString(),
             "\",",
-            "\"ECDSAStakeRegistryProxy\": \"",
-            address(stakeRegistry).toHexString(),
-            "\",",
+           // "\"ECDSAStakeRegistryProxy\": \"",
+           // address(stakeRegistry).toHexString(),
+           // "\",",
             "\"BitDSMServiceManagerProxy\": \"",
             address(serviceManager).toHexString(),
             "\"",

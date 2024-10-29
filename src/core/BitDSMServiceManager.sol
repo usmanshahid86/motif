@@ -12,12 +12,12 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
 
     constructor(
         address _avsDirectory,
-        address _stakeRegistry,
+        address _bitDSMRegistry,
         address _rewardsCoordinator,
         address _delegationManager
     ) ECDSAServiceManagerBase(
         _avsDirectory,
-        _stakeRegistry,
+        _bitDSMRegistry,
         _rewardsCoordinator,
         _delegationManager
     ) {}

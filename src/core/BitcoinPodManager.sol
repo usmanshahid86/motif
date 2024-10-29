@@ -42,7 +42,7 @@ contract BitcoinPodManager is
         nonReentrant 
     {
         require(userToPod[msg.sender] == address(0), "User already has a pod");
-        require(bitDSMRegistry.isOperatorRegistered(operator), "Invalid operator");
+        require(bitDSMRegistry.isOperatorBtcKeyRegistered(operator), "Invalid operator");
         
         bytes memory operatorBtcPubKey = bitDSMRegistry.getOperatorBtcPublicKey(operator);
         address newPod = address(new BitcoinPod(msg.sender, operator, operatorBtcPubKey, btcAddress, address(this)));
