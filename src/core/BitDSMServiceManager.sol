@@ -4,11 +4,21 @@ pragma solidity ^0.8.12;
 import "@eigenlayer-middleware/src/unaudited/ECDSAServiceManagerBase.sol";
 import "../interfaces/IBitDSMServiceManager.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-
+import {BitcoinDepositRequest, IBitcoinPodManager} from "../interfaces/IBitcoinPodManager.sol";
+import "../src/core/BitcoinPodManager.sol";
+import "../src/core/BitDSMRegistry.sol";
 contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager {
     // State variables
     uint32 public latestTaskNum;
     mapping(uint32 => bytes32) public allTaskHashes;
+
+    modifier onlyRegisteredOperator(address operator) {
+        require(
+            BitDSMRegistry(_bitDSMRegistry).operatorRegistered(operator),
+            "Operator must be registered"
+        );
+        _;
+    }
 
     constructor(
         address _avsDirectory,
@@ -25,36 +35,49 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         __ServiceManagerBase_init(_owner, address(0));
     } 
 
-    function createNewTask(string memory name) external {
-        Task memory newTask;
-        newTask.name = name;
-        newTask.taskCreatedBlock = uint32(block.number);
-
-        allTaskHashes[latestTaskNum] = keccak256(abi.encode(newTask));
-        emit NewTaskCreated(latestTaskNum, newTask);
-        latestTaskNum = latestTaskNum + 1;
-    }
-
     function confirmDeposit(
-        Task calldata task,
-        uint32 referenceTaskIndex,
+        address pod,
         bytes calldata signature
     ) external {
         require(
-            ECDSAStakeRegistry(stakeRegistry).operatorRegistered(msg.sender),
-            "Operator must be registered"
+            IBitcoinPod(pod).getOperator() == msg.sender,
+            "Only operator that owns the pod can confirm deposit"
         );
         require(
-            keccak256(abi.encode(task)) == allTaskHashes[referenceTaskIndex],
-            "Invalid task"
+            podToBitcoinDepositRequest[pod].length > 0,
+            "No deposit requests to confirm"
         );
-
-        bytes32 messageHash = keccak256(abi.encodePacked("Confirm deposit for: ", task.name));
+        BitcoinDepositRequest memory bitcoinDepositRequest = podToBitcoinDepositRequest[pod];
+        require(
+            !bitcoinDepositRequest.isPending,
+            "Deposit already verified"
+        );
+        bytes32 messageHash = keccak256(abi.encodePacked(pod, msg.sender, bitcoinDepositRequest));
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
         address signer = ECDSA.recover(ethSignedMessageHash, signature);
 
         require(signer == msg.sender, "Invalid signature");
-
-        emit DepositConfirmed(referenceTaskIndex, task, msg.sender);
+        IBitcoinPodManager.confirmBitcoinDeposit(pod, bitcoinDepositRequest.transactionId);
     }
+
+    function confirmWithdrawal(address pod, bytes caldata transaction, bytes calldata signature) external {
+        require(
+            IBitcoinPod(pod).getOperator() == msg.sender,
+            "Only operator that owns the pod can confirm withdrawal"
+        );
+        require(
+            podToWithdrawalAddress[pod] != bytes(0),
+            "No withdrawal request to confirm"
+        );
+        bytes memory withdrawAddress = podToWithdrawalAddress[pod];
+        
+        bytes32 messageHash = keccak256(abi.encodePacked(pod, transaction, withdrawAddress));
+        bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
+        address signer = ECDSA.recover(ethSignedMessageHash, signature);
+
+        require(signer == msg.sender, "Invalid signature");
+        IBitcoinPodManager.withdrawBitcoin(pod);
+    }
+
+
 }

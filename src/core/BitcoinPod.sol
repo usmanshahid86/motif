@@ -11,14 +11,15 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
     uint256 public bitcoinBalance;
     bool public locked;
     address public immutable manager;
+    bytes public signedBitcoinWithdrawTransaction;
 
-    modifier onlyManager() {
-        require(msg.sender == manager, "Only manager can call this function");
-        _;
-    }
 
     modifier onlyOperator(address _operator) {
         require(_operator == operator, "Only designated operator can perform this action");
+        _;
+    }
+    modifier lockedPod() {
+        require(!locked, "Pod is locked");
         _;
     }
 
@@ -46,8 +47,13 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
     function getBitcoinBalance() external view returns (uint256) {
         return bitcoinBalance;
     }
-
-    function lock() external onlyManager {
+    function getSignedBitcoinWithdrawTransaction() external view returns (bytes memory) {
+        return signedBitcoinWithdrawTransaction;
+    }
+    function setSignedBitcoinWithdrawTransaction(bytes memory _signedBitcoinWithdrawTransaction) external onlyManager {
+        signedBitcoinWithdrawTransaction = _signedBitcoinWithdrawTransaction;
+    }
+    function lock() external onlyManager lockedPod {
         locked = true;
     }
 
@@ -59,12 +65,14 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
         return locked;
     }
 
-    function mint(address _operator, uint256 amount) external onlyManager onlyOperator(_operator) {
+    function mint(address _operator, uint256 amount) external onlyManager onlyOperator(_operator) lockedPod {
+
         bitcoinBalance += amount;
     }
 
-    function burn(address _operator, uint256 amount) external onlyManager onlyOperator(_operator) {
+    function burn(address _operator, uint256 amount) external onlyManager onlyOperator(_operator) lockedPod {
         require(bitcoinBalance >= amount, "Insufficient balance");
         bitcoinBalance -= amount;
     }
+
 }

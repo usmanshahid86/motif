@@ -9,9 +9,5 @@ interface IBitDSMServiceManager is IServiceManager {
         uint32 taskCreatedBlock;
     }
 
-    event NewTaskCreated(uint32 indexed taskId, Task task);
-    event DepositConfirmed(uint32 indexed taskId, Task task, address operator);
-
-    function createNewTask(string memory name) external;
-    function confirmDeposit(Task calldata task, uint32 referenceTaskIndex, bytes calldata signature) external;
+    function confirmDeposit(address pod, bytes calldata signature) external;
 }

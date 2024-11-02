@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 interface IBitcoinPod {
+   
+
     function getBitcoinAddress() external view returns (bytes memory);
     function getOperatorBtcPubKey() external view returns (bytes memory);
     function getOperator() external view returns (address);
