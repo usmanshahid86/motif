@@ -19,13 +19,13 @@ contract BitcoinPodManager is
     IBitcoinPodManager 
 {
     /// @notice Address of the BitDSMService manager contract, which manages operator registration/deregistration to AVS and operator tasks.
-    address public immutable bitDSMServiceManager;
+    address public  bitDSMServiceManager;
     IAppRegistry public appRegistry;
     IBitDSMRegistry public bitDSMRegistry;
     mapping(address => address) public userToPod;
     mapping(address => address) public podToApp;
     mapping(address => BitcoinDepositRequest) public podToBitcoinDepositRequest;
-    mapping (address => bytes) public podTWithdrawalAddress;
+    mapping (address => bytes) public podToWithdrawalAddress;
 
     /* @dev Ensures that the function is only callable by the `BitDSMServiceManager` contract.
      * This is used to restrict deposit and withdrawal verification to the `BitDSMServiceManager` contract
@@ -88,6 +88,8 @@ contract BitcoinPodManager is
     }
 
     function _mintBitcoin(address pod, uint256 amount) internal whenNotPaused nonReentrant {
+        // check if the pod is undelegated
+        require(podToApp[pod] == address(0), "Pod is delegated");
         IBitcoinPod bitcoinPod = IBitcoinPod(pod);
         address operator = bitcoinPod.getOperator();
         //require(msg.sender == operator, "Only operator can mint");
@@ -97,9 +99,11 @@ contract BitcoinPodManager is
     }
 
     function _burnBitcoin(address pod, uint256 amount) internal whenNotPaused nonReentrant {
+        // check if the pod is undelegated
+        require(podToApp[pod] == address(0), "Pod is delegated");
         IBitcoinPod bitcoinPod = IBitcoinPod(pod);
         address operator = bitcoinPod.getOperator();
-        require(msg.sender == operator, "Only operator can burn");
+        //require(msg.sender == operator, "Only operator can burn");
         
         bitcoinPod.burn(operator, amount);
         emit BitcoinBurned(pod, amount);
@@ -121,16 +125,28 @@ contract BitcoinPodManager is
         IBitcoinPod(pod).unlock();
     }
 
+    
+    function getBitcoinDepositRequest(address pod) external view returns (BitcoinDepositRequest memory) {
+        return podToBitcoinDepositRequest[pod];
+    }
+
+    function getBitcoinWithdrawalAddress(address pod) external view returns (bytes memory) {
+        return podToWithdrawalAddress[pod];
+    }
+
+    
     /**  @notice verify the deposit request from the pod owner
      * @param pod the pod address
      * @param transactionId the Bitcoin transaction id
      * @param amount the amount deposited
      */
     function verifyBitcoinDepositRequest(address pod, bytes32 transactionId, uint256 amount) external whenNotPaused nonReentrant onlyPodOwner(pod) {
+        // check if any request is pending
+        require(podToBitcoinDepositRequest[pod].isPending == false, "Request already pending");
         podToBitcoinDepositRequest[pod] = BitcoinDepositRequest(transactionId, amount, true);
         // get operator for the pod
         address operator = IBitcoinPod(pod).getOperator();
-        emit verifyBitcoinDepositRequest(pod, operator, BitcoinDepositRequest(transactionId, amount, true));
+        emit VerifyBitcoinDepositRequest(pod, operator, BitcoinDepositRequest(transactionId, amount, true));
     }
     /**
      * @notice confirm the deposit from the service manager
@@ -152,22 +168,51 @@ contract BitcoinPodManager is
         delete podToBitcoinDepositRequest[pod];
     }
 
-    // submit Withdrawal request from the pod
+    // submit Withdrawal request from the pod Owner
+    // PSBT is the partial Bitcoin transaction created and presigned by the Operator to be completed by the Service Manager
+    // in response to the withdrawal request
     function withdrawBitcoinPSBTRequest(address pod, bytes memory withdrawAddress) external whenNotPaused nonReentrant onlyPodOwner(pod){
+        require(podToWithdrawalAddress[pod].length == 0, "Withdrawal already requested");
+        require(withdrawAddress.length > 0, "Invalid withdraw address");
+        // check if the pod is locked
+        require(IBitcoinPod(pod).isLocked() == false, "Pod is locked");
+
+        // check if pod is undelegated
+        require(podToApp[pod] == address(0), "Pod is delegated");
         // get the operator for the pod
         address operator = IBitcoinPod(pod).getOperator();
         podToWithdrawalAddress[pod] = withdrawAddress;
         // emit the event
-        emit withdrawBitcoinRequest(pod, operator, withdrawAddress);
+        emit BitcoinWithdrawalPSBTRequest(pod, operator, withdrawAddress);
+    }
+    // request for complete withdrawal transaction
+    // preSignedWithdrawTransaction is the Bitcoin transaction signed by the Client
+    // OPerator is required to complete the transaction and send it back to the pod owner
+    function withdrawBitcoinCompleteTxRequest(address pod, bytes memory preSignedWithdrawTransaction, bytes memory withdrawAddress) external whenNotPaused nonReentrant onlyPodOwner(pod){
+        require(podToWithdrawalAddress[pod].length == 0, "Withdrawal already requested");
+        require(withdrawAddress.length > 0, "Invalid withdraw address");
+        // check if the pod is locked
+        require(IBitcoinPod(pod).isLocked() == false, "Pod is locked");
+
+        // check if pod is undelegated
+        require(podToApp[pod] == address(0), "Pod is delegated");
+        // get the operator for the pod
+        address operator = IBitcoinPod(pod).getOperator();
+        podToWithdrawalAddress[pod] = withdrawAddress;
+        // emit the event
+        emit BitcoinWithdrawalCompleteTxRequest(pod, operator, preSignedWithdrawTransaction);
     }
 
-    function withdrawBitcoin(address pod) external whenNotPaused nonReentrant onlyBitDSMServiceManager{
+    function withdrawBitcoinAsTokens(address pod) external whenNotPaused nonReentrant onlyBitDSMServiceManager{
+        // check if the pod has a withdrawal request
+        require(podToWithdrawalAddress[pod].length != 0, "No withdrawal request");
+        // check if 
         // get the withdrawal address
         bytes memory withdrawAddress = podToWithdrawalAddress[pod];
         // burn the amount
         _burnBitcoin(pod, IBitcoinPod(pod).getBitcoinBalance());
         // emit the event
-        emit BitcoinWithdrawn(pod, withdrawAddress);
+        emit BitcoinWithdrawnFromPod(pod, withdrawAddress);
         // delete the withdrawal address
         delete podToWithdrawalAddress[pod];
     }

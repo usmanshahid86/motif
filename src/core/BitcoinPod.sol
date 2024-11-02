@@ -22,6 +22,10 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
         require(!locked, "Pod is locked");
         _;
     }
+    modifier onlyManager() {
+        require(msg.sender == manager, "Only manager can perform this action");
+        _;
+    }
 
     constructor(address _owner, address _operator, bytes memory _operatorBtcPubKey, bytes memory _btcAddress, address _manager) {
         _transferOwnership(_owner);
@@ -50,9 +54,11 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
     function getSignedBitcoinWithdrawTransaction() external view returns (bytes memory) {
         return signedBitcoinWithdrawTransaction;
     }
-    function setSignedBitcoinWithdrawTransaction(bytes memory _signedBitcoinWithdrawTransaction) external onlyManager {
+    
+    function setSignedBitcoinWithdrawTransaction(bytes memory _signedBitcoinWithdrawTransaction) external onlyManager(){
         signedBitcoinWithdrawTransaction = _signedBitcoinWithdrawTransaction;
     }
+
     function lock() external onlyManager lockedPod {
         locked = true;
     }
