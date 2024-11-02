@@ -20,6 +20,8 @@ interface IBitcoinPodManager {
     
     event withdrawBitcoinRequest(address indexed pod, address indexed operator, bytes withdrawAddress);
 
+    function podToApp(address pod) external view returns (address);
+
     function createPod(address operator, bytes memory btcAddress) external returns (address);
     function delegatePod(address pod, address appContract) external;
     function undelegatePod(address pod) external;
