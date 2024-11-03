@@ -32,9 +32,6 @@ contract DeployBitDSM is Script {
     IAVSDirectory public avsDirectory;
     IDelegationManager public delegationManager;
     IRewardsCoordinator public rewardsCoordinator;
-    
-   // ECDSAStakeRegistry public stakeRegistry;
-    BitDSMServiceManager public serviceManager;
 
     Quorum quorum;
     uint256 thresholdWeight = 1;
@@ -42,7 +39,16 @@ contract DeployBitDSM is Script {
     AppRegistry public appRegistry;
     BitcoinPodManager public bitcoinPodManager;
     BitDSMRegistry public bitDSMRegistry;
+    BitDSMServiceManager public serviceManager;
 
+    struct BitDSMImplementationAddresses {
+        address proxyAdmin;
+        address appRegistry;
+        address bitcoinPodManager;
+        address bitDSMRegistry;
+        address serviceManager;
+    }
+    BitDSMImplementationAddresses public bitDSMImplementationAddresses;
     function _loadEigenlayerAddresses(string memory targetEnv) internal {
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/script/eigenlayer_addresses.json");
@@ -106,7 +112,8 @@ contract DeployBitDSM is Script {
         );
         appRegistry = AppRegistry(address(appRegistryProxy));
 
-        
+        bitDSMImplementationAddresses.appRegistry = address(appRegistryImpl);
+
         
         // Deploy BitDSMRegistry inherited from ECDSAStakeRegistry
         BitDSMRegistry bitDSMRegistryImpl = new BitDSMRegistry(delegationManager);
@@ -115,7 +122,9 @@ contract DeployBitDSM is Script {
             address(proxyAdmin),
             ""
         );
-       
+
+        bitDSMImplementationAddresses.bitDSMRegistry = address(bitDSMRegistryImpl);
+
         // Deploy BitDSMServiceManager
         BitDSMServiceManager serviceManagerImpl = new BitDSMServiceManager(
             address(avsDirectory),
@@ -124,19 +133,22 @@ contract DeployBitDSM is Script {
             address(delegationManager)
         );
 
+        bitDSMImplementationAddresses.serviceManager = address(serviceManagerImpl);
+
         // Deploy BitcoinPodManager
         BitcoinPodManager bitcoinPodManagerImpl = new BitcoinPodManager();
         TransparentUpgradeableProxy bitcoinPodManagerProxy = new TransparentUpgradeableProxy(
             address(bitcoinPodManagerImpl),
             address(proxyAdmin),
-            abi.encodeCall(BitcoinPodManager.initialize, (address(appRegistry), address(bitDSMRegistry)))
+            ""
         );
-        bitcoinPodManager = BitcoinPodManager(address(bitcoinPodManagerProxy));
+
+        bitDSMImplementationAddresses.bitcoinPodManager = address(bitcoinPodManagerImpl);
         
         TransparentUpgradeableProxy serviceManagerProxy = new TransparentUpgradeableProxy(
             address(serviceManagerImpl),
             address(proxyAdmin),
-            abi.encodeWithSelector(BitDSMServiceManager.initialize.selector, deployer)
+            abi.encodeWithSelector(BitDSMServiceManager.initialize.selector, deployer, address(0), address(bitcoinPodManagerProxy))
         );
         // Initialize bitDSMRegistry
         BitDSMRegistry(address(bitDSMRegistryProxy)).initialize(
@@ -144,21 +156,36 @@ contract DeployBitDSM is Script {
             thresholdWeight,
             quorum
         );
-        bitDSMRegistry = BitDSMRegistry(address(bitDSMRegistryProxy));
+       // Initialize BitcoinPodManager
+       BitcoinPodManager(address(bitcoinPodManagerProxy)).initialize(
+        address(appRegistry),
+        address(bitDSMRegistryProxy),
+        address(serviceManagerProxy)
+       );
 
+        bitDSMRegistry = BitDSMRegistry(address(bitDSMRegistryProxy));
+        bitcoinPodManager = BitcoinPodManager(address(bitcoinPodManagerProxy));
         serviceManager = BitDSMServiceManager(address(serviceManagerProxy));
        
        // check the owner of the contracts
        require(
-            bitDSMRegistry.owner() == address(deployer),
-            "Owner of ECDSAStakeRegistry is not the deployer"
+            bitDSMRegistry.owner() == deployer,
+            "Owner of BitDSMRegistry is not the deployer"
         );
         require(
-            serviceManager.owner() == address(deployer),
+            serviceManager.owner() == deployer,
             "Owner of BitDSMServiceManager is not the deployer"
         );
+        require(
+            bitcoinPodManager.owner() == deployer,
+            "Owner of BitcoinPodManager is not the deployer"
+        );
        
-       
+       require(
+        appRegistry.owner() == deployer,
+        "Owner of AppRegistry is not the deployer"
+       );
+
        serviceManager.updateAVSMetadataURI(metadataUri);
 
         vm.stopBroadcast();
@@ -167,7 +194,6 @@ contract DeployBitDSM is Script {
         console.log("AppRegistry Proxy: ", address(appRegistry));
         console.log("BitDSMRegistry Proxy: ", address(bitDSMRegistry));
         console.log("BitcoinPodManager Proxy: ", address(bitcoinPodManager));
-       // console.log("ECDSAStakeRegistry Proxy: ", address(stakeRegistryProxy));
         console.log("BitDSMServiceManager Proxy: ", address(serviceManagerProxy));
         
         // verify deployment
@@ -177,9 +203,6 @@ contract DeployBitDSM is Script {
     }
 
     function _verifyDeployment() internal view {
-      //  require(
-        //    address(stakeRegistry)!= address(0), "StakeRegistry address cannot be zero"
-       // );
         require(
             address(serviceManager) != address(0),
             "BitDSMServiceManager address cannot be zero"
@@ -206,17 +229,26 @@ contract DeployBitDSM is Script {
             "\"AppRegistryProxy\": \"",
             address(appRegistry).toHexString(),
             "\",",
-            "\"BitDSMRegistryProxy\": \"",
-            address(bitDSMRegistry).toHexString(),
+            "\"AppRegistryImplementation\": \"",
+            bitDSMImplementationAddresses.appRegistry.toHexString(),
             "\",",
             "\"BitcoinPodManagerProxy\": \"",
             address(bitcoinPodManager).toHexString(),
             "\",",
-           // "\"ECDSAStakeRegistryProxy\": \"",
-           // address(stakeRegistry).toHexString(),
-           // "\",",
+            "\"BitcoinPodManagerImplementation\": \"",
+            bitDSMImplementationAddresses.bitcoinPodManager.toHexString(),
+            "\",",
+            "\"BitDSMRegistryProxy\": \"",
+            address(bitDSMRegistry).toHexString(),
+            "\",",
+            "\"BitDSMRegistryImplementation\": \"",
+            bitDSMImplementationAddresses.bitDSMRegistry.toHexString(),
+            "\",",
             "\"BitDSMServiceManagerProxy\": \"",
             address(serviceManager).toHexString(),
+            "\",",
+            "\"BitDSMServiceManagerImplementation\": \"",
+            bitDSMImplementationAddresses.serviceManager.toHexString(),
             "\"",
             "}"
         );

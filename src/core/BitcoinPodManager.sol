@@ -19,7 +19,7 @@ contract BitcoinPodManager is
     IBitcoinPodManager 
 {
     /// @notice Address of the BitDSMService manager contract, which manages operator registration/deregistration to AVS and operator tasks.
-    address public  bitDSMServiceManager;
+    address internal _bitDSMServiceManager;
     IAppRegistry public appRegistry;
     IBitDSMRegistry public bitDSMRegistry;
     mapping(address => address) public userToPod;
@@ -32,7 +32,7 @@ contract BitcoinPodManager is
      */
     modifier onlyBitDSMServiceManager() {
         require(
-            msg.sender == bitDSMServiceManager,
+            msg.sender == _bitDSMServiceManager,
             "BitcoinPodManager.onlyBitDSMServiceManager: caller is not the BitDSMServiceManager"
         );
         _;
@@ -43,13 +43,13 @@ contract BitcoinPodManager is
         _;
     }
 
-    function initialize(address _appRegistry, address _bitDSMRegistry, address _bitDSMServiceManager) public initializer {
+    function initialize(address _appRegistry, address _bitDSMRegistry, address bitDSMServiceManager) public initializer {
         __Ownable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
         appRegistry = IAppRegistry(_appRegistry);
         bitDSMRegistry = IBitDSMRegistry(_bitDSMRegistry);
-        bitDSMServiceManager = _bitDSMServiceManager;
+        _bitDSMServiceManager = bitDSMServiceManager;
     }
 
     function createPod(address operator, bytes memory btcAddress)                   

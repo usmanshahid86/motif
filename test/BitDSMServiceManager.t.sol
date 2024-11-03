@@ -56,8 +56,7 @@ contract BitDSMServiceManagerTest is Test {
             address(mockAVSDirectory),
             address(mockStakeRegistry),
             address(0), // mock delegation manager
-            address(0), // mock rewards coordinator 
-            address(0) // mock bitcoin pod manager
+            address(0) // mock rewards coordinator 
         );
     }
 

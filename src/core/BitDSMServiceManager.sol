@@ -12,7 +12,7 @@ import "../interfaces/IBitcoinPod.sol";
 
 contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager {
     // State variables
-    address public immutable bitcoinPodManager;
+    IBitcoinPodManager _bitcoinPodManager;
 
     modifier onlyRegisteredOperator(address operator) {
         require(
@@ -26,19 +26,16 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         address _avsDirectory,
         address _bitDSMRegistry,
         address _rewardsCoordinator,
-        address _delegationManager,
-        address _bitcoinPodManager
+        address _delegationManager
     ) ECDSAServiceManagerBase(
         _avsDirectory,
         _bitDSMRegistry,
         _rewardsCoordinator,
         _delegationManager
-    ) {
-
-        bitcoinPodManager = _bitcoinPodManager;
-    }
-    function initialize(address _owner) public initializer {
-        __ServiceManagerBase_init(_owner, address(0));
+    ) {}
+    function initialize(address _owner, address _rewardsInitiator, address bitcoinPodManager) public initializer {
+        __ServiceManagerBase_init(_owner, _rewardsInitiator);
+        _bitcoinPodManager = IBitcoinPodManager(bitcoinPodManager);
     } 
 
     function confirmDeposit(
@@ -54,17 +51,14 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
           //  "No deposit requests to confirm"
        // );
         IBitcoinPodManager.BitcoinDepositRequest memory bitcoinDepositRequest = 
-        IBitcoinPodManager(bitcoinPodManager).getBitcoinDepositRequest(pod);
-        //require(
-//
-  //           "Deposit already verified"
-    //    );
+        _bitcoinPodManager.getBitcoinDepositRequest(pod);
+
         bytes32 messageHash = keccak256(abi.encodePacked(pod, msg.sender, bitcoinDepositRequest.amount, bitcoinDepositRequest.transactionId, true));
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
         address signer = ECDSA.recover(ethSignedMessageHash, signature);
 
         require(signer == msg.sender, "Invalid Operator signature");
-        IBitcoinPodManager(bitcoinPodManager).confirmBitcoinDeposit(pod, bitcoinDepositRequest.transactionId, bitcoinDepositRequest.amount ) ;
+        _bitcoinPodManager.confirmBitcoinDeposit(pod, bitcoinDepositRequest.transactionId, bitcoinDepositRequest.amount ) ;
     }
 
     function withdrawBitcoinPSBT(address pod, uint256 amount, bytes calldata psbtTransaction, bytes calldata signature) external {
@@ -75,7 +69,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         // check if the pod has a withdrawal request
        // require(IBitcoinPodManager(bitcoinPodManager).getBitcoinWithdrawalAddress(pod) != address(0), "No withdrawal request");
         // verify the operator sign over psbt
-        bytes memory withdrawAddress = IBitcoinPodManager(bitcoinPodManager).getBitcoinWithdrawalAddress(pod);
+        bytes memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
         bytes32 messageHash = keccak256(abi.encodePacked(pod, amount, psbtTransaction, withdrawAddress));
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
         address signer = ECDSA.recover(ethSignedMessageHash, signature);
@@ -93,7 +87,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
             "Only operator that owns the pod can process withdrawal"
         );
         // get withdraw address from the pod
-        bytes memory withdrawAddress = IBitcoinPodManager(bitcoinPodManager).getBitcoinWithdrawalAddress(pod);
+        bytes memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
             // decode the transaction
         // check if the transaction is a withdrawal transaction
         // check if the withdrawal address appear as the recipient in the transaction 
@@ -117,11 +111,11 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
             "Only operator that owns the pod can confirm withdrawal"
         );
        require(
-           IBitcoinPodManager(bitcoinPodManager).getBitcoinWithdrawalAddress(pod).length != 0,
+           _bitcoinPodManager.getBitcoinWithdrawalAddress(pod).length != 0,
            "No withdrawal request to confirm"
         );
 
-        bytes memory withdrawAddress = IBitcoinPodManager(bitcoinPodManager).getBitcoinWithdrawalAddress(pod);
+        bytes memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
     
 
         bytes32 messageHash = keccak256(abi.encodePacked(pod, transaction, withdrawAddress));
@@ -129,7 +123,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         address signer = ECDSA.recover(ethSignedMessageHash, signature);
 
         require(signer == msg.sender, "Invalid signature");
-        IBitcoinPodManager(bitcoinPodManager).withdrawBitcoinAsTokens(pod);
+        _bitcoinPodManager.withdrawBitcoinAsTokens(pod);
     }
 
 
