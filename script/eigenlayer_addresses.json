@@ -73,18 +73,40 @@
         "name": "rETH",
         "strategy": "0x3A8fBdf9e77DFc25d09741f51d3E181b25d0c4E0"
       },
-      
+      {
+        "name": "ETHx",
+        "strategy": "0x31B6F59e1627cEfC9fA174aD03859fC337666af7"
+      },
+      {
+        "name": "osETH",
+        "strategy": "0x46281E3B7fDcACdBa44CADf069a94a588Fd4C6Ef"
+      },
+      {
+        "name": "cbETH",
+        "strategy": "0x70EB4D3c164a6B4A5f908D4FBb5a9cAfFb66bAB6"
+      },
+
       {
         "name": "ankerETH",
         "strategy": "0x7673a47463F80c6a3553Db9E54c8cDcd5313d0ac"
       },
+
       {
         "name": "stETH",
         "strategy": "0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3"
       },
+
       {
         "name": "wETH",
         "strategy": "0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9"
+      },
+      {
+        "name": "sfrxETH",
+        "strategy": "0x9281ff96637710Cd9A5CAcce9c6FAD8C9F54631c"
+      },
+      {
+        "name": "mETH",
+        "strategy": "0xaccc5A86732BE85b5012e8614AF237801636F8e5"
       },
       {
         "name": "Beacon Chain ETH",
