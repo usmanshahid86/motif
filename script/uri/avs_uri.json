@@ -1,7 +1,7 @@
 {
-  "name": "BitDSM AVS",
-  "website": "https://bitdsm.org/",
+  "name": "BitDSM AVS v2",
+  "website": "https://github.com/BitDSM/",
   "description": "BitDSM brings a new era of Bitcoin integration by enabling native, non-custodial delegation directly to Ethereum applications. At the core are BitcoinPods (BODs), inspired by EigenPods in EigenLayer, allowing smart contracts to execute slashing logic directly on native Bitcoin addresses. This bridgeless approach transforms Bitcoin into a versatile asset for financial activities, from Liquid Staking Tokens and lending to stablecoins and enhanced AVS security.",
-  "logo": "https://raw.githubusercontent.com/hammadtq/BitDSM/3dfdba9661d6cecaea53d01d81bc558047cde3f2/script/uri/bitdsm_cover.png",
-  "twitter": "https://twitter.com/eigenlayer"
+  "logo": "https://raw.githubusercontent.com/BitDSM/BitDSM/6bacae19bbf786728159df1d3888012d3ebe3b70/script/uri/bitdsm_cover.png",
+  "twitter": "https://twitter.com/BitDSM"
 }
