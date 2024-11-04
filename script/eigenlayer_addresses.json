@@ -70,12 +70,12 @@
         "strategy": "0x05037A81BD7B4C9E0F7B430f1F2A22c31a2FD943"
       },
       {
-        "name": "rETH",
-        "strategy": "0x3A8fBdf9e77DFc25d09741f51d3E181b25d0c4E0"
-      },
-      {
         "name": "ETHx",
         "strategy": "0x31B6F59e1627cEfC9fA174aD03859fC337666af7"
+      },
+      {
+        "name": "rETH",
+        "strategy": "0x3A8fBdf9e77DFc25d09741f51d3E181b25d0c4E0"
       },
       {
         "name": "osETH",
