@@ -3,7 +3,7 @@
 // run this using ts-node operator/index.ts
 
 import { ethers } from "ethers";
-//const { ethers } = require("ethers");
+import { getBytes as arrayify } from "ethers";
 import * as dotenv from "dotenv";
 //const dotenv = require("dotenv");
 const fs = require('fs');
@@ -106,14 +106,14 @@ const registerOperator = async () => {
     // check if operator is already registered to AVS
     const registered_operator_avs =
       await bitDSMRegistryContract.operatorRegistered(wallet.address);
-    if (registered_operator_avs) {
-        console.log("Operator already registered to AVS");
-        return;
+   if (registered_operator_avs) {
+       console.log("Operator already registered to AVS");
+       return;
     }
     else {
         const salt = ethers.hexlify(ethers.randomBytes(32));
         const expiry = Math.floor(Date.now() / 1000) + 3600; // Example expiry, 1 hour from now
-
+       
         // prepare to register operator to AVS
         let operatorSignatureWithSaltAndExpiry = {
             signature: "",
@@ -140,15 +140,34 @@ const registerOperator = async () => {
         console.log("Registering Operator to AVS Registry contract");
         // get the BTC public key of Operator from env
         const btcPublicKey = process.env.BTC_PUBLIC_KEY;
+        if (!btcPublicKey) {
+            throw new Error("BTC_PUBLIC_KEY environment variable is not set");
+        }
+        // Convert hex string to bytes array, removing '0x' prefix if present
+        const btcPubKeyHex = btcPublicKey;
+        const btcPublicKeyBytes = ethers.getBytes(btcPubKeyHex);
+        console.log("BTC public key bytes:", btcPublicKeyBytes);
+       
         // Register Operator to AVS
         // Per release here: https://github.com/Layr-Labs/eigenlayer-middleware/blob/v0.2.1-mainnet-rewards/src/unaudited/ECDSAStakeRegistry.sol#L49
         const tx2 = await bitDSMRegistryContract.registerOperatorWithSignature(
-            operatorSignatureWithSaltAndExpiry,
-            wallet.address,
-            btcPublicKey
+          operatorSignatureWithSaltAndExpiry,
+          wallet.address,
+          btcPublicKeyBytes
         );
         await tx2.wait();
         console.log("Operator registered on AVS successfully");
+    }
+};
+
+// deregister operator
+const deregisterOperator = async () => {
+    try {
+        const tx3 = await bitDSMRegistryContract.deregisterOperator();
+        await tx3.wait();
+        console.log("Operator deregistered from AVS successfully");
+    } catch (error) {
+        console.error("Error in deregistering operator:", error);
     }
 };
 
@@ -189,6 +208,7 @@ const monitorNewTasks = async () => {
 
 const main = async () => {
     await registerOperator();
+   // await deregisterOperator();
   // monitorNewTasks().catch((error) => {
   //     console.error("Error monitoring tasks:", error);
   // });
