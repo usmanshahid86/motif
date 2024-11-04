@@ -11,8 +11,11 @@ const artifactsDir = path.join(contractsDir, 'out');
 const contractsToExtract = [
   'IAVSDirectory',
   'IDelegationManager',
-  'ECDSAStakeRegistry',
-  'BitDSMServiceManager'
+  'BitDSMRegistry',
+  'BitDSMServiceManager',
+  'BitcoinPodManager',
+  'AppRegistry',
+  'BitcoinPod'
 ];
 
 if (!fs.existsSync(abiDir)) {

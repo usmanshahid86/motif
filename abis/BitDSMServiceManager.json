@@ -8,7 +8,7 @@
         "internalType": "address"
       },
       {
-        "name": "_stakeRegistry",
+        "name": "_bitDSMRegistry",
         "type": "address",
         "internalType": "address"
       },
@@ -24,25 +24,6 @@
       }
     ],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "allTaskHashes",
-    "inputs": [
-      {
-        "name": "",
-        "type": "uint32",
-        "internalType": "uint32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -62,26 +43,32 @@
     "name": "confirmDeposit",
     "inputs": [
       {
-        "name": "task",
-        "type": "tuple",
-        "internalType": "struct IBitDSMServiceManager.Task",
-        "components": [
-          {
-            "name": "name",
-            "type": "string",
-            "internalType": "string"
-          },
-          {
-            "name": "taskCreatedBlock",
-            "type": "uint32",
-            "internalType": "uint32"
-          }
-        ]
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        "name": "referenceTaskIndex",
-        "type": "uint32",
-        "internalType": "uint32"
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "confirmWithdrawal",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "transaction",
+        "type": "bytes",
+        "internalType": "bytes"
       },
       {
         "name": "signature",
@@ -146,19 +133,6 @@
   },
   {
     "type": "function",
-    "name": "createNewTask",
-    "inputs": [
-      {
-        "name": "name",
-        "type": "string",
-        "internalType": "string"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "deregisterOperatorFromAVS",
     "inputs": [
       {
@@ -210,23 +184,20 @@
         "name": "_owner",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "_rewardsInitiator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "bitcoinPodManager",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "latestTaskNum",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint32",
-        "internalType": "uint32"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -349,38 +320,82 @@
     "stateMutability": "nonpayable"
   },
   {
-    "type": "event",
-    "name": "DepositConfirmed",
+    "type": "function",
+    "name": "withdrawBitcoinCompleteTx",
     "inputs": [
       {
-        "name": "taskId",
-        "type": "uint32",
-        "indexed": true,
-        "internalType": "uint32"
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        "name": "task",
-        "type": "tuple",
-        "indexed": false,
-        "internalType": "struct IBitDSMServiceManager.Task",
-        "components": [
-          {
-            "name": "name",
-            "type": "string",
-            "internalType": "string"
-          },
-          {
-            "name": "taskCreatedBlock",
-            "type": "uint32",
-            "internalType": "uint32"
-          }
-        ]
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "completeTx",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdrawBitcoinPSBT",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "psbtTransaction",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "BitcoinWithdrawalTransactionSigned",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "operator",
         "type": "address",
-        "indexed": false,
+        "indexed": true,
         "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -394,37 +409,6 @@
         "type": "uint8",
         "indexed": false,
         "internalType": "uint8"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "NewTaskCreated",
-    "inputs": [
-      {
-        "name": "taskId",
-        "type": "uint32",
-        "indexed": true,
-        "internalType": "uint32"
-      },
-      {
-        "name": "task",
-        "type": "tuple",
-        "indexed": false,
-        "internalType": "struct IBitDSMServiceManager.Task",
-        "components": [
-          {
-            "name": "name",
-            "type": "string",
-            "internalType": "string"
-          },
-          {
-            "name": "taskCreatedBlock",
-            "type": "uint32",
-            "internalType": "uint32"
-          }
-        ]
       }
     ],
     "anonymous": false

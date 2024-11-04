@@ -36,42 +36,46 @@ const delegationManagerAddress = coreDeploymentData.holesky.delegationManager;
 const avsDirectoryAddress = coreDeploymentData.holesky.avsDirectory;
 
 const bitDSMServiceManagerAddress = avsDeploymentData.BitDSMServiceManagerProxy;
-const ecdsaStakeRegistryAddress = avsDeploymentData.ECDSAStakeRegistryProxy;
-
+const bitDSMRegistryAddress = avsDeploymentData.BitDSMRegistryProxy;
+const bitcoinPodManagerAddress = avsDeploymentData.BitcoinPodManagerProxy;
 
 
 // Load ABIs
 const delegationManagerABI = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../abis/IDelegationManager.json'), 'utf8'));
-const ecdsaRegistryABI = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../abis/ECDSAStakeRegistry.json'), 'utf8'));
+const bitDSMRegistryABI = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../abis/BitDSMRegistry.json'), 'utf8'));
 const bitDSMServiceManagerABI = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../abis/BitDSMServiceManager.json'), 'utf8'));
+const bitcoinPodManagerABI = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../abis/BitcoinPodManager.json'), 'utf8'));
 const avsDirectoryABI = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../abis/IAVSDirectory.json'), 'utf8'));
 
 // Initialize contract objects from ABIs
 const delegationManager = new ethers.Contract(delegationManagerAddress, delegationManagerABI, wallet);
 const bitDSMServiceManager = new ethers.Contract(bitDSMServiceManagerAddress, bitDSMServiceManagerABI, wallet);
-const ecdsaRegistryContract = new ethers.Contract(ecdsaStakeRegistryAddress, ecdsaRegistryABI, wallet);
+const bitDSMRegistryContract = new ethers.Contract(bitDSMRegistryAddress, bitDSMRegistryABI, wallet);
+const bitcoinPodManager = new ethers.Contract(bitcoinPodManagerAddress, bitcoinPodManagerABI, wallet);
 const avsDirectory = new ethers.Contract(avsDirectoryAddress, avsDirectoryABI, wallet);
+    
 
+interface BitcoinDepositRequest {
+    transactionId: string;
+    amount: bigint;
+    isPending: boolean;
+}
 
-const signAndRespondToTask = async (taskIndex: number, taskCreatedBlock: number, taskName: string) => {
-    const message = `Hello, ${taskName}`;
+const signAndRespondToTask = async (pod: string, operator: string, bitcoinDepositRequest: BitcoinDepositRequest) => {
+    const message = `${pod} ${operator} ${bitcoinDepositRequest.transactionId} ${bitcoinDepositRequest.amount} ${bitcoinDepositRequest.isPending}`;
     const messageHash = ethers.solidityPackedKeccak256(["string"], [message]);
     const messageBytes = ethers.getBytes(messageHash);
     const signature = await wallet.signMessage(messageBytes);
 
-    console.log(`Signing and responding to task ${taskIndex}`);
+    console.log(`Signing and responding to task`);
 
     const operators = [await wallet.getAddress()];
     const signatures = [signature];
-    const signedTask = ethers.AbiCoder.defaultAbiCoder().encode(
-        ["address[]", "bytes[]", "uint32"],
-        [operators, signatures, ethers.toBigInt(await provider.getBlockNumber())]
-    );
+   
 
     const tx = await bitDSMServiceManager.confirmDeposit(
-      { name: taskName, taskCreatedBlock: taskCreatedBlock },
-      taskIndex,
-      signedTask
+      pod,
+      signature
     );
     await tx.wait();
     console.log(`Responded to task.`);
@@ -101,7 +105,7 @@ const registerOperator = async () => {
     }
     // check if operator is already registered to AVS
     const registered_operator_avs =
-      await ecdsaRegistryContract.operatorRegistered(wallet.address);
+      await bitDSMRegistryContract.operatorRegistered(wallet.address);
     if (registered_operator_avs) {
         console.log("Operator already registered to AVS");
         return;
@@ -134,12 +138,14 @@ const registerOperator = async () => {
         operatorSignatureWithSaltAndExpiry.signature = ethers.Signature.from(operatorSignedDigestHash).serialized;
 
         console.log("Registering Operator to AVS Registry contract");
-    
+        // get the BTC public key of Operator from env
+        const btcPublicKey = process.env.BTC_PUBLIC_KEY;
         // Register Operator to AVS
         // Per release here: https://github.com/Layr-Labs/eigenlayer-middleware/blob/v0.2.1-mainnet-rewards/src/unaudited/ECDSAStakeRegistry.sol#L49
-        const tx2 = await ecdsaRegistryContract.registerOperatorWithSignature(
+        const tx2 = await bitDSMRegistryContract.registerOperatorWithSignature(
             operatorSignatureWithSaltAndExpiry,
-            wallet.address
+            wallet.address,
+            btcPublicKey
         );
         await tx2.wait();
         console.log("Operator registered on AVS successfully");
@@ -147,22 +153,45 @@ const registerOperator = async () => {
 };
 
 const monitorNewTasks = async () => {
-    console.log(`Creating new task "EigenWorld"`);
-    await bitDSMServiceManager.createNewTask("EigenWorld");
-
-    bitDSMServiceManager.on("NewTaskCreated", async (taskIndex: number, task: any) => {
-        console.log(`New task detected: Hello, ${task.name}`);
-        await signAndRespondToTask(taskIndex, task.taskCreatedBlock, task.name);
-    });
+    console.log(`Creating a reference task for testing"`);
+    // create a reference task for testing
+    // random address for Pod
+    const pod = "0x1234567890123456789012345678901234567890";
+    // random transaction id
+    const transactionId = "0x1234567890123456789012345678901234567890";
+    // random amount
+    const amount = 1000000;
+    // get caller address
+    const operator = await wallet.getAddress();
+    await bitcoinPodManager.verifyBitcoinDepositRequest(pod, transactionId, amount);
+    //await bitDSMServiceManager.createNewTask("EigenWorld");
+    // create BitcoinDepositRequest object
+    const bitcoinDepositRequest = {
+        transactionId: transactionId,
+        amount: amount,
+        isPending: true
+    };
+    // listen to the VerifyBitcoinDepositRequest event
+    bitcoinPodManager.on(
+      "VerifyBitcoinDepositRequest",
+      async (
+        pod: string,
+        operator: string,
+        bitcoinDepositRequest
+      ) => {
+        console.log(`New task detected: Hello`);
+        await signAndRespondToTask(pod, operator, bitcoinDepositRequest);
+      }
+    );
 
     console.log("Monitoring for new tasks...");
 };
 
 const main = async () => {
     await registerOperator();
-   monitorNewTasks().catch((error) => {
-       console.error("Error monitoring tasks:", error);
-   });
+  // monitorNewTasks().catch((error) => {
+  //     console.error("Error monitoring tasks:", error);
+  // });
 };
 
 main().catch((error) => {
