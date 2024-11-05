@@ -36,7 +36,11 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
     function initialize(address _owner, address _rewardsInitiator, address bitcoinPodManager) public initializer {
         __ServiceManagerBase_init(_owner, _rewardsInitiator);
         _bitcoinPodManager = IBitcoinPodManager(bitcoinPodManager);
-    } 
+    }
+
+    function setBitcoinPodManager(address bitcoinPodManager) external {
+        _bitcoinPodManager = IBitcoinPodManager(bitcoinPodManager);
+    }
 
     function confirmDeposit(
         address pod,
@@ -67,7 +71,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
             "Only operator that owns the pod can process withdrawal"
         );
         // check if the pod has a withdrawal request
-       // require(IBitcoinPodManager(bitcoinPodManager).getBitcoinWithdrawalAddress(pod) != address(0), "No withdrawal request");
+       require(_bitcoinPodManager.getBitcoinWithdrawalAddress(pod).length != 0, "No withdrawal request");
         // verify the operator sign over psbt
         bytes memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
         bytes32 messageHash = keccak256(abi.encodePacked(pod, amount, psbtTransaction, withdrawAddress));
@@ -76,7 +80,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         require(signer == msg.sender, "Invalid Operator signature");
 
         // store the psbt in the pod
-        IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(psbtTransaction);
+        _bitcoinPodManager.setSignedBitcoinWithdrawTransactionPod(pod, psbtTransaction);
         // emit the event
         emit BitcoinWithdrawalTransactionSigned(pod, msg.sender, amount);
     }
@@ -99,7 +103,7 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         require(signer == msg.sender, "Invalid Operator signature");
 
         // send the completeTx to the pod owner
-        IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(completeTx);
+        _bitcoinPodManager.setSignedBitcoinWithdrawTransactionPod(pod, completeTx);
         // emit the event
         emit BitcoinWithdrawalTransactionSigned(pod, msg.sender, amount);
     }

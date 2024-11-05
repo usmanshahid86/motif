@@ -40,4 +40,6 @@ interface IBitcoinPodManager {
     function withdrawBitcoinPSBTRequest(address pod, bytes memory withdrawAddress) external;
     function withdrawBitcoinCompleteTxRequest(address pod, bytes memory preSignedWithdrawTransaction, bytes memory withdrawAddress) external;
     function withdrawBitcoinAsTokens(address pod) external;
+
+    function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction) external;
 }

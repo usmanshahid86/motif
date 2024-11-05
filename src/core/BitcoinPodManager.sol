@@ -217,4 +217,8 @@ contract BitcoinPodManager is
         // delete the withdrawal address
         delete podToWithdrawalAddress[pod];
     }
+
+    function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction) external whenNotPaused onlyBitDSMServiceManager{
+        IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(signedBitcoinWithdrawTransaction);
+    }
 }
