@@ -86,8 +86,9 @@ contract BitcoinPodManager is
         delete podToApp[pod];
         emit PodUndelegated(pod);
     }
+// removing the nonReentrant and whenNotPaused modifiers as the calling function already has them
 
-    function _mintBitcoin(address pod, uint256 amount) internal whenNotPaused nonReentrant {
+    function _mintBitcoin(address pod, uint256 amount) internal {
         // check if the pod is undelegated
         require(podToApp[pod] == address(0), "Pod is delegated");
         IBitcoinPod bitcoinPod = IBitcoinPod(pod);
@@ -97,8 +98,8 @@ contract BitcoinPodManager is
         bitcoinPod.mint(operator, amount);
         emit BitcoinMinted(pod, amount);
     }
-
-    function _burnBitcoin(address pod, uint256 amount) internal whenNotPaused nonReentrant {
+// removing the nonReentrant and whenNotPaused modifiers as the calling function already has them
+    function _burnBitcoin(address pod, uint256 amount) internal {
         // check if the pod is undelegated
         require(podToApp[pod] == address(0), "Pod is delegated");
         IBitcoinPod bitcoinPod = IBitcoinPod(pod);
