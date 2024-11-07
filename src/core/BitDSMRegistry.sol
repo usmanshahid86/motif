@@ -5,6 +5,9 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "../interfaces/IBitDSMRegistry.sol";
 import "../libraries/ECDSAStakeRegistry.sol";
 
+
+// @inheritdoc IBitDSMRegistry
+// @inheritdoc ECDSAStakeRegistry
 contract BitDSMRegistry is 
     ECDSAStakeRegistry, 
     PausableUpgradeable, 
@@ -30,11 +33,7 @@ contract BitDSMRegistry is
         __Pausable_init();
     }
     
-    /**
-    * @notice Registers a new operator using a provided signature and signing key
-    * @param _operatorSignature Contains the operator's ECDSA signature, salt, and expiry
-    * @param _signingKey The signing key to add to the operator's history
-    * @param btcPublicKey The Bitcoin public key to register for the operator
+    /**@inheritdoc IBitDSMRegistry
     */
     function registerOperatorWithSignature(
         ISignatureUtils.SignatureWithSaltAndExpiry memory _operatorSignature,
@@ -55,8 +54,7 @@ contract BitDSMRegistry is
     }
 
     /**
-    * @notice override the deregisterOperator function 
-    * @dev caller must be the operator itself 
+    * @inheritdoc IBitDSMRegistry
     */
     function deregisterOperator() override (ECDSAStakeRegistry, IBitDSMRegistry) external {
         require(_operatorToBtcPublicKey[msg.sender].length > 0, "Operator not registered");
@@ -68,12 +66,14 @@ contract BitDSMRegistry is
         emit OperatorBtckeyDeregistered(msg.sender);
     }
 
-    /// @notice check if an operator has a BTC public key registered
+    /**@inheritdoc IBitDSMRegistry
+    */
     function isOperatorBtcKeyRegistered(address operator) external view returns (bool) {
         return _operatorToBtcPublicKey[operator].length > 0;
     }
 
-    /// @notice get the BTC public key for an operator  
+    /**@inheritdoc IBitDSMRegistry
+    */
     function getOperatorBtcPublicKey(address operator) external view returns (bytes memory) {
         require(_operatorToBtcPublicKey[operator].length > 0, "Operator not registered");
         return _operatorToBtcPublicKey[operator];

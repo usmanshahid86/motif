@@ -9,7 +9,21 @@ import "../interfaces/IBitcoinPodManager.sol";
 import "../interfaces/IBitDSMRegistry.sol";
 import "../interfaces/IBitcoinPod.sol";
 
-
+/**
+ * @title BitDSM Service Manager
+ * @dev This contract manages Bitcoin DSM (Decentralized Service Manager) operations
+ * @notice Extends ECDSAServiceManagerBase to handle Bitcoin pod operations and deposits
+ * 
+ * Key components:
+ * - Manages Bitcoin pod operations through IBitcoinPodManager
+ * - Handles deposit confirmations from operators
+ * - Integrates with EigenLayer for staking and delegation
+ * 
+ * Dependencies:
+ * - ECDSAServiceManagerBase: Base contract for ECDSA service management
+ * - IBitcoinPodManager: Interface for Bitcoin pod management
+ * - IBitDSMRegistry: Registry interface for BitDSM services and handling EigenLayer staking and delegation
+ */
 contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager {
     // State variables
     IBitcoinPodManager _bitcoinPodManager;
@@ -21,7 +35,15 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         );
         _;
     }
-
+    /**
+     * @notice Constructor for BitDSMServiceManager contract
+     * @dev Initializes the contract with required dependencies from EigenLayer and BitDSM
+     * @param _avsDirectory Address of the EigenLayer AVS Directory contract
+     * @param _bitDSMRegistry Address of the BitDSM Registry contract for operator management
+     * @param _rewardsCoordinator Address of the rewards coordinator contract
+     * @param _delegationManager Address of EigenLayer's delegation manager contract
+     * 
+     */
     constructor(
         address _avsDirectory,
         address _bitDSMRegistry,
@@ -33,6 +55,13 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         _rewardsCoordinator,
         _delegationManager
     ) {}
+
+    /**
+     * @notice Initializes the BitDSMServiceManager contract
+     * @param _owner Address of the owner of the contract
+     * @param _rewardsInitiator Address of the rewards initiator
+     * @param bitcoinPodManager Address of the BitcoinPodManager contract
+     */
     function initialize(address _owner, address _rewardsInitiator, address bitcoinPodManager) public initializer {
         __ServiceManagerBase_init(_owner, _rewardsInitiator);
         _bitcoinPodManager = IBitcoinPodManager(bitcoinPodManager);
@@ -42,6 +71,9 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         _bitcoinPodManager = IBitcoinPodManager(bitcoinPodManager);
     }
 
+    /**
+    * @inheritdoc IBitDSMServiceManager
+     */
     function confirmDeposit(
         address pod,
         bytes calldata signature
@@ -65,6 +97,9 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         _bitcoinPodManager.confirmBitcoinDeposit(pod, bitcoinDepositRequest.transactionId, bitcoinDepositRequest.amount ) ;
     }
 
+   /**
+    * @inheritdoc IBitDSMServiceManager
+     */
     function withdrawBitcoinPSBT(address pod, uint256 amount, bytes calldata psbtTransaction, bytes calldata signature) external {
         require(
             IBitcoinPod(pod).getOperator() == msg.sender,
@@ -85,6 +120,9 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         emit BitcoinWithdrawalTransactionSigned(pod, msg.sender, amount);
     }
 
+    /**
+    * @inheritdoc IBitDSMServiceManager
+     */
     function withdrawBitcoinCompleteTx(address pod, uint256 amount, bytes calldata completeTx, bytes calldata signature) external {
         require(
             IBitcoinPod(pod).getOperator() == msg.sender,
@@ -108,7 +146,9 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
         emit BitcoinWithdrawalTransactionSigned(pod, msg.sender, amount);
     }
 
-
+     /**
+    * @inheritdoc IBitDSMServiceManager
+     */
     function confirmWithdrawal(address pod, bytes calldata transaction, bytes calldata signature) external {
         require(
             IBitcoinPod(pod).getOperator() == msg.sender,
@@ -121,7 +161,6 @@ contract BitDSMServiceManager is ECDSAServiceManagerBase, IBitDSMServiceManager 
 
         bytes memory withdrawAddress = _bitcoinPodManager.getBitcoinWithdrawalAddress(pod);
     
-
         bytes32 messageHash = keccak256(abi.encodePacked(pod, transaction, withdrawAddress));
         bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(messageHash);
         address signer = ECDSA.recover(ethSignedMessageHash, signature);
