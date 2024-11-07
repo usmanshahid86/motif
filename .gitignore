@@ -7,8 +7,11 @@ broadcast/
 /broadcast/*/31337/
 /broadcast/**/dry-run/
 
-# Docs
+# Ignore everything in the docs/ folder
 docs/
+
+# But do not ignore docs/src/ and its contents
+!docs/src/
 
 # Dotenv file
 .env
