@@ -71,7 +71,7 @@ contract UpgradeAppRegistry is Script {
         address deployer = vm.addr(deployerPrivateKey);
         
         // Load existing proxy address
-        string memory json = vm.readFile("bitdsm_addresses.json");
+        string memory json = vm.readFile("script/bitdsm_addresses.json");
         address PROXY_ADMIN = abi.decode(vm.parseJson(json, ".ProxyAdmin"), (address));
         address proxy = abi.decode(vm.parseJson(json, ".AppRegistryProxy"), (address));
         
@@ -106,7 +106,7 @@ contract VerifyAppRegistry is Script {
     function run() public view {
       
          
-        string memory json = vm.readFile("bitdsm_addresses.json");
+        string memory json = vm.readFile("script/bitdsm_addresses.json");
          address PROXY_ADMIN = abi.decode(vm.parseJson(json, ".ProxyAdmin"), (address));
         address proxy = abi.decode(vm.parseJson(json, ".AppRegistryProxy"), (address));
         

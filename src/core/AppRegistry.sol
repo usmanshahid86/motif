@@ -86,7 +86,7 @@ contract AppRegistry is
         require(appStatus[app] == AppRegistrationStatus.UNREGISTERED, "AppRegistry: app already registered");
         require(!appSaltIsSpent[app][salt], "AppRegistry: salt already spent");
 
-        bytes32 digestHash = calculateAppRegistrationDigestHash(app, msg.sender, salt, expiry);
+        bytes32 digestHash = calculateAppRegistrationDigestHash(app, address(this), salt, expiry);
 
         EIP1271SignatureUtils.checkSignature_EIP1271(app, digestHash, signature);
 

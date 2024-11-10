@@ -1,7 +1,7 @@
 {
   "ProxyAdmin": "0x71e4efecf796bbbc562f639adde036784f67a563",
   "AppRegistryProxy": "0xF4E2f70806628040C19BC041192Be7F2C798AA9E",
-  "AppRegistryImplementation": "0xbe63f361aBA98345e5325337CC8D698e88216E5a",
+  "AppRegistryImplementation": "0x7682960B41D9f82912feaEA0796f38a963AF2647",
   "BitcoinPodManagerProxy": "0x3fab0a58446da7a0703c0856a7c05abfa5a0f964",
   "BitcoinPodManagerImplementation": "0x9bE8D6388FAC03D01BE5820edAaDc051cf6C8cF4",
   "BitDSMRegistryProxy": "0x9619e0b51531ba2607d55422d66b14c570d5de7a",

@@ -23,7 +23,7 @@ contract VerifyMetadataUpdate is Script {
         vm.startBroadcast(deployerPrivateKey);
         
         // Update metadata
-        proxy.updateAVSMetadataURI("new-metadata-uri");
+        proxy.updateAVSMetadataURI("https://raw.githubusercontent.com/BitDSM/BitDSM/refs/heads/implement-v1-ecdsa/script/uri/avs_uri.json");
         
         vm.stopBroadcast();
         
