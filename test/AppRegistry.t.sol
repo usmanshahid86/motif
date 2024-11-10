@@ -24,7 +24,7 @@ contract AppRegistryTest is Test {
         bytes32 salt = keccak256("test_salt");
         uint256 expiry = block.timestamp + 1 hours;
 
-        bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, salt, expiry);
+        bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, address(appRegistry), salt, expiry);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digestHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -51,7 +51,7 @@ contract AppRegistryTest is Test {
         bytes32 salt = keccak256("new_salt");
         uint256 expiry = block.timestamp + 1 hours;
 
-        bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, salt, expiry);
+        bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, address(appRegistry), salt, expiry);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digestHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -64,7 +64,7 @@ contract AppRegistryTest is Test {
         bytes32 salt = keccak256("test_salt");
         uint256 expiry = block.timestamp - 1; // Expired
 
-        bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, salt, expiry);
+        bytes32 digestHash = appRegistry.calculateAppRegistrationDigestHash(app, address(appRegistry),salt, expiry);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digestHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 

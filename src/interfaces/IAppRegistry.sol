@@ -79,6 +79,7 @@ interface IAppRegistry {
      */
     function calculateAppRegistrationDigestHash(
         address app,
+        address appRegistry,
         bytes32 salt,
         uint256 expiry
     ) external view returns (bytes32);

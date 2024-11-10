@@ -39,7 +39,7 @@ contract AppRegistry is
     // @notice Mapping of app address and salt to usage status
     mapping(address => mapping(bytes32 => bool)) public appSaltIsSpent;
     // @notice EIP-712 typehash for app registration
-    bytes32 private constant APP_REGISTRATION_TYPEHASH = keccak256("AppRegistration(address app,bytes32 salt,uint256 expiry)");
+    bytes32 private constant APP_REGISTRATION_TYPEHASH = keccak256("AppRegistration(address app,address appRegistry, bytes32 salt,uint256 expiry)");
     // @notice EIP-712 typehash for domain separator
     bytes32 private constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
     // @notice Unique domain separator for this contract instance
@@ -86,7 +86,7 @@ contract AppRegistry is
         require(appStatus[app] == AppRegistrationStatus.UNREGISTERED, "AppRegistry: app already registered");
         require(!appSaltIsSpent[app][salt], "AppRegistry: salt already spent");
 
-        bytes32 digestHash = calculateAppRegistrationDigestHash(app, salt, expiry);
+        bytes32 digestHash = calculateAppRegistrationDigestHash(app, msg.sender, salt, expiry);
 
         EIP1271SignatureUtils.checkSignature_EIP1271(app, digestHash, signature);
 
@@ -147,10 +147,11 @@ contract AppRegistry is
     // @inheritdoc IAppRegistry
     function calculateAppRegistrationDigestHash(
         address app,
+        address appRegistry,
         bytes32 salt,
         uint256 expiry
     ) public view override returns (bytes32) {
-        bytes32 structHash = keccak256(abi.encode(APP_REGISTRATION_TYPEHASH, app, salt, expiry));
+        bytes32 structHash = keccak256(abi.encode(APP_REGISTRATION_TYPEHASH, app, appRegistry, salt, expiry));
         return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
     }
 
