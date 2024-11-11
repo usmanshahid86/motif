@@ -70,3 +70,33 @@ $ forge --help
 $ anvil --help
 $ cast --help
 ```
+
+## Deployment
+
+```shell
+$ forge script script/DeployBitDSM.s.sol:DeployBitDSM --fork-url http://localhost:8545 --broadcast --private-key $PRIVATE_KEY
+```
+
+## Existing Holesky Testnet Deployment 
+ 
+| Contract Name                               | Holesky Address                                                                                                                 | 
+| -------------                               | --------------------------------------------------------------------                                                            |
+| ProxyAdmin                                  | [0x71e4efecf796bbbc562f639adde036784f67a563](https://holesky.etherscan.io/address/0x71e4efecf796bbbc562f639adde036784f67a563)   |
+| BitDSMRegistry                              | [0x9619e0b51531ba2607d55422d66b14c570d5de7a](https://holesky.etherscan.io/address/0x9619e0b51531ba2607d55422d66b14c570d5de7a)   |
+| BitDSMRegistryImplementation                | [0x641ff9a3d79f24fe45fb6b7351bcb43c2e7aed44](https://holesky.etherscan.io/address/0x641ff9a3d79f24fe45fb6b7351bcb43c2e7aed44)   |
+| BitDSmServiceManager                        | [0x3e091b2318356b1aa1d5f0bd846e956b48beb238](https://holesky.etherscan.io/address/0x3e091b2318356b1aa1d5f0bd846e956b48beb238)   |
+| BitDSMServiceManagerImplementation          | [0xe6440517ffee6be577ffff6b9b528a01c25bad80](https://holesky.etherscan.io/address/0xe6440517ffee6be577ffff6b9b528a01c25bad80)   |
+| AppRegistry                                 | [0xd2a6d4e2f8faf4ee980be7ff43fb9e47b496b475](https://holesky.etherscan.io/address/0xd2a6d4e2f8faf4ee980be7ff43fb9e47b496b475)   |   
+| AppRegistryImplementation                   | [0x8dad35e5f7f76b1dbf5874db00616e296a81123c](https://holesky.etherscan.io/address/0x8dad35e5f7f76b1dbf5874db00616e296a81123c)   |
+| BitcoinPodManager                           | [0x3fab0a58446da7a0703c0856a7c05abfa5a0f964](https://holesky.etherscan.io/address/0x3fab0a58446da7a0703c0856a7c05abfa5a0f964)   |
+| BitcoinPodManagerImplementation             | [0x9AF4733B16Df32ea6cdf806ed137F778242d5b32](https://holesky.etherscan.io/address/0x9AF4733B16Df32ea6cdf806ed137F778242d5b32)   |
+
+Please see [Current Testnet Deployment](https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment) for additional deployed addresses of core EigenLayer contracts.
+
+
+## Access Deployment Files 
+Contract deployment files including the abi's can be found at the following address. 
+
+```
+DEPLOYMENT_FILES_DIR=contracts/script/output/${CHAINID}
+```

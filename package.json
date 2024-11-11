@@ -1,0 +1,21 @@
+{
+  "name": "bitdsm-avs",
+  "version": "1.0.0",
+  "main": "index.js",
+ 
+  "scripts": {
+    "start:operator": "ts-node operator/index.ts",
+    "start:traffic": "ts-node operator/createNewTasks.ts",
+    "build": "cd contracts && forge build",
+    "extract:abis": "node abis/abis.js"
+  },
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "ethers": "^6.13.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
