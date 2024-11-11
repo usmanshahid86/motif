@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
-
+import  "../interfaces/IBitcoinPodManager.sol";
 /**
  * @title BitcoinPodManagerStorage
  * @notice Storage contract for BitcoinPodManager
@@ -26,18 +26,31 @@ contract BitcoinPodManagerStorage {
     mapping(address => address) internal _podToApp;
     
     /// @notice Mapping of pod address to the Bitcoin deposit request
-    mapping(address => BitcoinDepositRequest) internal _podToBitcoinDepositRequest;
+    mapping(address => IBitcoinPodManager.BitcoinDepositRequest) internal _podToBitcoinDepositRequest;
     
     /// @notice Mapping of pod address to the withdrawal address
     mapping(address => bytes) internal _podToWithdrawalAddress;
     
-    /// @notice Struct to store Bitcoin deposit request details
-    struct BitcoinDepositRequest {
-        bytes32 transactionId;
-        uint256 amount;
-        bool isPending;
-    }
+        /**
+     * @notice Struct to store Bitcoin deposit request details
+     * @dev Tracks the status and details of pending Bitcoin deposit requests
+     * @param transactionId The transaction ID of the deposit
+     * @param amount The amount of Bitcoin deposited
+     * @param isPending Whether the deposit request is pending
+     */
+  
     
     /// @dev Gap for future storage variables
     uint256[50] private __gap;
+
+    /// @dev Internal setters
+    function _setUserPod(address user, address pod) internal {
+        _userToPod[user] = pod;
+    }
+
+    function _setPodApp(address pod, address app) internal {
+        _podToApp[pod] = app;
+    }
+
+    // ... other internal setters
 } 

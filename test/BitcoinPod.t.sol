@@ -103,7 +103,7 @@ contract BitcoinPodManagerTest is Test {
         vm.prank(user);
         podManager.createPod(operator, userBtcAddress);
 
-        address podAddress = podManager.userToPod(user);
+        address podAddress = podManager.getUserPod(user);
         assertTrue(podAddress != address(0), "Pod should be created");
 
         BitcoinPod pod = BitcoinPod(podAddress);
@@ -143,7 +143,7 @@ contract BitcoinPodManagerTest is Test {
         vm.prank(user);
         podManager.createPod(operator, userBtcAddress);
         
-        address podAddress = podManager.userToPod(user);
+        address podAddress = podManager.getUserPod(user);
         BitcoinPod pod = BitcoinPod(podAddress);
 
         vm.startPrank(user);
@@ -169,7 +169,7 @@ contract BitcoinPodManagerTest is Test {
         vm.prank(user);
         podManager.createPod(operator, userBtcAddress);
         
-        address podAddress = podManager.userToPod(user);
+        address podAddress = podManager.getUserPod(user);
         BitcoinPod pod = BitcoinPod(podAddress);
 
         address arbitraryAddress = address(0x1234);
@@ -222,7 +222,7 @@ contract BitcoinPodManagerTest is Test {
         podManager.createPod(operator, userBtcAddress);
 
         // Get the pod address
-        address podAddress = podManager.userToPod(user);
+        address podAddress = podManager.getUserPod(user);
 
         // Check if the pod address is a contract
         assertTrue(podAddress.code.length > 0, "Pod address should be a contract");

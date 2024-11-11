@@ -41,7 +41,7 @@ contract BitDSMRegistry is
         bytes calldata btcPublicKey // Additional parameter
     ) override external {
         // Your custom logic goes here
-     require(btcPublicKey.length == 33, "Invalid Bitcoin public key length");
+        require(btcPublicKey.length == 33, "Invalid Bitcoin public key length");
         require(_operatorToBtcPublicKey[msg.sender].length == 0, "Operator already registered");
         // register operator with avs using signature 
         _registerOperatorWithSig(msg.sender, _operatorSignature, _signingKey);

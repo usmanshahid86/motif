@@ -84,7 +84,7 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
     function getOperatorBtcPubKey() external view returns (bytes memory) {
         return operatorBtcPubKey;
     }
-  
+    // @inheritdoc IBitcoinPod
     function getOperator() external view returns (address) {
         return operator;
     }

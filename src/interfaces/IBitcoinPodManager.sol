@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.12;
 /**
  * @title IBitcoinPodManager
  * @notice Interface for managing Bitcoin pods, which handle Bitcoin deposits and withdrawals
@@ -10,18 +10,69 @@ pragma solidity ^0.8.0;
  * - Pod locking/unlocking mechanisms
  */
 interface IBitcoinPodManager {
+   
     /**
      * @notice Struct to store Bitcoin deposit request details
-     * @dev Tracks the status and details of pending Bitcoin deposit requests
-     * @param transactionId The transaction ID of the deposit
-     * @param amount The amount of Bitcoin deposited
-     * @param isPending Whether the deposit request is pending
+     * @param transactionId The Bitcoin transaction ID of the deposit
+     * @param amount The amount of Bitcoin being deposited in satoshis
+     * @param isPending deposit request status
      */
     struct BitcoinDepositRequest {
         bytes32 transactionId;
         uint256 amount;
         bool isPending;
     }
+
+    /**
+     * @notice Gets the pod address associated with a user
+     * @param user The address of the user
+     * @return The address of the user's pod
+     */
+    function getUserPod(address user) external view returns (address);
+
+    /**
+     * @notice Gets the app contract address that a pod is delegated to
+     * @param pod The address of the pod
+     * @return The address of the app contract the pod is delegated to
+     */
+    function getPodApp(address pod) external view returns (address);
+
+     /**
+     * @notice Retrieves the Bitcoin deposit request for a pod
+     * @param pod The address of the pod 
+     * @return BitcoinDepositRequest memory The deposit request for the pod
+     */
+    function getBitcoinDepositRequest(address pod) external view returns (BitcoinDepositRequest memory);
+    /**
+     * @notice Retrieves the withdrawal address for a pod
+     * @param pod The address of the pod 
+     * @return bytes memory The bitcoin withdrawal address for the pod
+     */
+    function getBitcoinWithdrawalAddress(address pod) external view returns (bytes memory );
+
+    /**
+     * @notice Gets the total value locked across all pods
+     * @return The total value locked in satoshis
+     */
+    function getTotalTVL() external view returns (uint256);
+
+    /**
+     * @notice Gets the address of the BitDSM Service Manager contract
+     * @return The address of the BitDSM Service Manager
+     */
+    function getBitDSMServiceManager() external view returns (address);
+
+    /**
+     * @notice Gets the address of the App Registry contract
+     * @return The address of the App Registry
+     */
+    function getAppRegistry() external view returns (address);
+
+    /**
+     * @notice Gets the address of the BitDSM Registry contract
+     * @return The address of the BitDSM Registry
+     */
+    function getBitDSMRegistry() external view returns (address);
     /**
      * @notice Event emitted when a new pod is created
      * @param user The address of the user creating the pod
@@ -52,6 +103,12 @@ interface IBitcoinPodManager {
      * @param amount The amount of Bitcoin tokens burned
      */
     event BitcoinBurned(address indexed pod, uint256 amount);
+    
+    /**
+     * @notice Event emitted when the total TVL is updated
+     * @param newTVL The new total TVL
+     */
+    event TotalTVLUpdated(uint256 newTVL);
     /**
      * @notice Event emitted when a Bitcoin deposit request is initiated
      * @param pod The address of the pod where the deposit is requested
@@ -85,18 +142,6 @@ interface IBitcoinPodManager {
      * @param preSignedBitcoinTx The pre-signed Bitcoin transaction sent from the client
      */
     event BitcoinWithdrawalCompleteTxRequest(address indexed pod, address indexed operator, bytes preSignedBitcoinTx);
-    /**
-     * @notice Retrieves the Bitcoin deposit request for a pod
-     * @param pod The address of the pod 
-     * @return BitcoinDepositRequest memory The deposit request for the pod
-     */
-    function getBitcoinDepositRequest(address pod) external view returns (BitcoinDepositRequest memory);
-    /**
-     * @notice Retrieves the withdrawal address for a pod
-     * @param pod The address of the pod 
-     * @return bytes memory The bitcoin withdrawal address for the pod
-     */
-    function getBitcoinWithdrawalAddress(address pod) external view returns (bytes memory );
 
     /**
      * @notice Creates a new pod
@@ -177,4 +222,5 @@ interface IBitcoinPodManager {
      * @param signedBitcoinWithdrawTransaction The signed Bitcoin PSBT or raw transaction
      */
     function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction) external;
+
 }
