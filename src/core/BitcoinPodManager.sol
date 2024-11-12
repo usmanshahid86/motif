@@ -191,13 +191,15 @@ contract BitcoinPodManager is
         require(IBitDSMRegistry(_bitDSMRegistry).isOperatorBtcKeyRegistered(operator), "Invalid operator");
         
         bytes memory operatorBtcPubKey = IBitDSMRegistry(_bitDSMRegistry).getOperatorBtcPublicKey(operator);
-        address newPod = address(new BitcoinPod(msg.sender, operator, operatorBtcPubKey, btcAddress, address(this)));
+        // create the pod
+        BitcoinPod newPod = new BitcoinPod(address(this));
+        newPod.initialize(msg.sender, operator, operatorBtcPubKey, btcAddress);
         // set the user to pod mapping
-        _setUserPod(msg.sender, newPod);
+        _setUserPod(msg.sender, address(newPod));
         
-        emit PodCreated(msg.sender, newPod, operator);
+        emit PodCreated(msg.sender, address(newPod), operator);
         // return the pod address
-        return newPod;
+        return address(newPod);
     }
 
     /**

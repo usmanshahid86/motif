@@ -55,25 +55,31 @@ contract BitcoinPod is IBitcoinPod, OwnableUpgradeable {
         _;
     }
     /**
+     * @notice Initializes the immutable manager address
+     * @param _manager Address of the BitcoinPodManager contract that manages this pod
+     */
+    constructor(address _manager) {
+        manager = _manager;
+        //_disableInitializers();
+    }
+    /**
      * @notice Initializes a new Bitcoin pod with the specified parameters
      * @param _owner Address that will own this pod contract
      * @param _operator Address of the designated operator who can perform sensitive actions
      * @param _operatorBtcPubKey Bitcoin public key of the operator for multisig address generation
      * @param _btcAddress Multisig Bitcoin address associated with this pod
-     * @param _manager Address of the BitcoinPodManager contract that manages this pod
      * @dev Sets initial state:
      * - Transfers ownership to _owner
      * - Sets operator and their BTC public key
      * - Sets the pod's Bitcoin address
-     * - Sets the manager contract address
      * - Initializes pod as unlocked
      */
-    constructor(address _owner, address _operator, bytes memory _operatorBtcPubKey, bytes memory _btcAddress, address _manager) {
+    function initialize(address _owner, address _operator, bytes memory _operatorBtcPubKey, bytes memory _btcAddress) external initializer {
+        __Ownable_init();
         _transferOwnership(_owner);
         operator = _operator;
         operatorBtcPubKey = _operatorBtcPubKey;
         bitcoinAddress = _btcAddress;
-        manager = _manager;
         locked = false;
     }
     // @inheritdoc IBitcoinPod

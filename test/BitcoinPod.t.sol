@@ -1,230 +1,138 @@
 // SPDX-License-Identifier: MIT
- pragma solidity ^0.8.12;
+pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import "../src/core/BitDSMRegistry.sol";
-import "../src/core/BitcoinPodManager.sol";
 import "../src/core/BitcoinPod.sol";
-import {AppRegistry} from "../src/core/AppRegistry.sol";
-import {IBitDSMRegistry} from "../src/interfaces/IBitDSMRegistry.sol";
-import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
-import {IDelegationManager} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
-import {ISignatureUtils} from "@eigenlayer/src/contracts/interfaces/ISignatureUtils.sol";
-import {IStrategy} from "@eigenlayer/src/contracts/interfaces/IStrategy.sol";
-import {Quorum, StrategyParams} from "@eigenlayer-middleware/src/interfaces/IECDSAStakeRegistryEventsAndErrors.sol";
 
-contract MockServiceManager {
-    // solhint-disable-next-line
-    function deregisterOperatorFromAVS(address) external {}
-
-    function registerOperatorToAVS(
-        address,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory // solhint-disable-next-line
-    ) external {}
-}
-
-contract MockDelegationManager {
-    function operatorShares(address, address) external pure returns (uint256) {
-        return 1000; // Return a dummy value for simplicity
-    }
-
-    function getOperatorShares(
-        address,
-        address[] memory strategies
-    ) external pure returns (uint256[] memory) {
-        uint256[] memory response = new uint256[](strategies.length);
-        for (uint256 i; i < strategies.length; i++) {
-            response[i] = 1000;
-        }
-        return response; // Return a dummy value for simplicity
-    }
-}
-
-
-
-contract BitcoinPodManagerTest is Test {
-    BitDSMRegistry public bitDSMRegistry;
-    BitcoinPodManager public podManager;
-    AppRegistry public appRegistry;
+contract BitcoinPodTest is Test {
+    BitcoinPod public pod;
     address public owner;
-    MockDelegationManager public delegationManager;
-    MockServiceManager public serviceManager;
     address public operator;
-    address public user;
+    address public manager;
     bytes public operatorBtcPubKey;
-    bytes public userBtcAddress;
+    bytes public bitcoinAddress;
 
     function setUp() public {
-        delegationManager = new MockDelegationManager();
-        serviceManager = new MockServiceManager();
-        
-        bitDSMRegistry = new BitDSMRegistry(IDelegationManager(address(delegationManager)));
-       
-        // initialize strategy
-        IStrategy mockStrategy = IStrategy(address(0x1234));
-        Quorum memory quorum = Quorum({strategies: new StrategyParams[](1)});
-        quorum.strategies[0] = StrategyParams({
-            strategy: mockStrategy,
-            multiplier: 10_000
-        });
-        
-        bitDSMRegistry.initialize(address(serviceManager), 100, quorum); 
-
-        appRegistry = new AppRegistry();
         owner = address(this);
-        appRegistry.initialize(owner);
-
-        podManager = new BitcoinPodManager();
-        podManager.initialize(address(appRegistry), address(bitDSMRegistry), address(0));
-
         operator = address(0x1);
-        user = address(0x2);
-        operatorBtcPubKey = hex"02a1633cafcc01ebfb6d78e39f687a1f0995c62fc95f51ead10a02ee0be551b5dc";
-        userBtcAddress = hex"76a914ca29dfa9e97fa4f0623742e4f7b90f81bfe5671b88ac";
+        manager = address(0x2);
+        operatorBtcPubKey = hex"0123456789abcdef";
+        bitcoinAddress = hex"fedcba9876543210";
+
+        pod = new BitcoinPod(manager);
+        pod.initialize(owner, operator, operatorBtcPubKey, bitcoinAddress);
     }
 
-    function testOperatorRegistration() public {
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
-        vm.startPrank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
-        vm.stopPrank();
-
-        assertTrue(bitDSMRegistry.operatorRegistered(operator), "Operator should be registered");
-        assertEq(bitDSMRegistry.getOperatorBtcPublicKey(operator), operatorBtcPubKey, "Operator BTC public key should match");
+    function testInitialState() public view{
+        assertEq(pod.owner(), owner);
+        assertEq(pod.operator(), operator);
+        assertEq(pod.manager(), manager);
+        assertEq(pod.operatorBtcPubKey(), operatorBtcPubKey);
+        assertEq(pod.bitcoinAddress(), bitcoinAddress);
+        assertEq(pod.bitcoinBalance(), 0);
+        assertFalse(pod.locked());
+        assertEq(pod.signedBitcoinWithdrawTransaction(), "");
     }
 
-    function testPodCreation() public {
-        // First, register the operator
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
-        vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+    function testMint() public {
+        uint256 amount = 100;
+        
+        // Successful mint when unlocked
+        vm.prank(manager);
+        pod.mint(operator, amount);
+        assertEq(pod.bitcoinBalance(), amount);
 
-        // Now, create a pod as the user
-        vm.prank(user);
-        podManager.createPod(operator, userBtcAddress);
+        // Lock pod
+        vm.prank(manager);
+        pod.lock();
 
-        address podAddress = podManager.getUserPod(user);
-        assertTrue(podAddress != address(0), "Pod should be created");
+        // Try minting while locked
+        vm.prank(manager);
+        vm.expectRevert("Pod is locked");
+        pod.mint(operator, amount);
 
-        BitcoinPod pod = BitcoinPod(podAddress);
-        assertEq(pod.owner(), user, "Pod owner should be the user");
-        assertEq(pod.getOperator(), operator, "Pod operator should be set correctly");
-        assertEq(pod.getBitcoinAddress(), userBtcAddress, "Bitcoin address should be set correctly");
-        assertEq(pod.getOperatorBtcPubKey(), operatorBtcPubKey, "Operator BTC public key should be set correctly");
+        // Try minting with wrong operator (while unlocked)
+        vm.prank(manager);
+        pod.unlock();
+        vm.prank(manager);
+        vm.expectRevert("Only designated operator can perform this action");
+        pod.mint(address(0x3), amount);
     }
 
-    function testCannotCreatePodWithUnregisteredOperator() public {
-        vm.prank(user);
-        vm.expectRevert("Invalid operator");
-        podManager.createPod(operator, userBtcAddress);
+    function testBurn() public {
+        uint256 amount = 100;
+        
+        // Setup: mint some balance first
+        vm.prank(manager);
+        pod.mint(operator, amount);
+
+        // Lock pod and try burning while locked
+        vm.prank(manager);
+        pod.lock();
+        vm.prank(manager);
+        vm.expectRevert("Pod is locked");
+        pod.burn(operator, amount);
+
+        // Unlock and test remaining burn scenarios
+        vm.prank(manager);
+        pod.unlock();
+
+        // Try burning with wrong operator
+        vm.prank(manager);
+        vm.expectRevert("Only designated operator can perform this action");
+        pod.burn(address(0x3), amount);
+
+        // Try burning too much
+        vm.prank(manager);
+        vm.expectRevert("Insufficient balance");
+        pod.burn(operator, amount + 1);
+
+        // Successful burn
+        vm.prank(manager);
+        pod.burn(operator, amount);
+        assertEq(pod.bitcoinBalance(), 0);
     }
 
-    function testCannotCreateMultiplePods() public {
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;  
-        // Register operator
-        vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
+    function testLockUnlock() public {
+        // Only manager can lock/unlock
+        vm.prank(address(0x3));
+        vm.expectRevert("Only manager can perform this action");
+        pod.lock();
 
-        // Create first pod
-        vm.prank(user);
-        podManager.createPod(operator, userBtcAddress);
+        vm.prank(address(0x3));
+        vm.expectRevert("Only manager can perform this action");
+        pod.unlock();
 
-        // Try to create second pod
-        vm.prank(user);
-        vm.expectRevert("User already has a pod");
-        podManager.createPod(operator, userBtcAddress);
+        // Successful lock
+        vm.prank(manager);
+        pod.lock();
+        assertTrue(pod.isLocked());
+
+        // Successful unlock
+        vm.prank(manager);
+        pod.unlock();
+        assertFalse(pod.isLocked());
     }
 
-    function testUserCannotMintBurnOrDeposit() public {
-        // Register operator and create pod
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
-        vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
-        vm.prank(user);
-        podManager.createPod(operator, userBtcAddress);
-        
-        address podAddress = podManager.getUserPod(user);
-        BitcoinPod pod = BitcoinPod(podAddress);
+    function testSetSignedBitcoinWithdrawTransaction() public {
+        bytes memory txn = hex"1234";
 
-        vm.startPrank(user);
-        
-        // Test mint
-        vm.expectRevert("Only manager can call this function");
-        pod.mint(operator, 100);
+        // Only manager can set
+        vm.prank(address(0x3));
+        vm.expectRevert("Only manager can perform this action");
+        pod.setSignedBitcoinWithdrawTransaction(txn);
 
-        // Test burn
-        vm.expectRevert("Only manager can call this function");
-        pod.burn(operator, 50);
-
-        // Remove the deposit test as it's not part of the BitcoinPod contract
-
-        vm.stopPrank();
+        // Successful set
+        vm.prank(manager);
+        pod.setSignedBitcoinWithdrawTransaction(txn);
+        assertEq(pod.getSignedBitcoinWithdrawTransaction(), txn);
     }
 
-    function testArbitraryAddressCannotMintOrBurn() public {
-        // Register operator and create pod
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
-        vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator,operatorBtcPubKey);
-        vm.prank(user);
-        podManager.createPod(operator, userBtcAddress);
-        
-        address podAddress = podManager.getUserPod(user);
-        BitcoinPod pod = BitcoinPod(podAddress);
-
-        address arbitraryAddress = address(0x1234);
-        vm.startPrank(arbitraryAddress);
-        
-        // Test mint
-        vm.expectRevert("Only manager can call this function");
-        pod.mint(operator, 100);
-
-        // Test burn
-        vm.expectRevert("Only manager can call this function");
-        pod.burn(operator, 50);
-
-        vm.stopPrank();
-    }
-
-    // function testOperatorCanMintAndBurn() public {
-    //     // Register operator and create pod
-    //     ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
-    //     vm.prank(operator);
-    //     bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
-    //     vm.prank(user);
-    //     podManager.createPod(operator, userBtcAddress);
-        
-    //     address podAddress = podManager.userToPod(user);
-    //     BitcoinPod pod = BitcoinPod(podAddress);
-
-    //     vm.startPrank(operator);
-        
-    //     // Test mint
-    //     podManager.mintBitcoin(podAddress, 100);
-    //     assertEq(pod.getBitcoinBalance(), 100, "Balance should be 100 after minting");
-
-    //     // Test burn
-    //     podManager.burnBitcoin(podAddress, 50);
-    //     assertEq(pod.getBitcoinBalance(), 50, "Balance should be 50 after burning");
-
-    //     vm.stopPrank();
-    // }
-
-    function testPodCreationAndOwnership() public {
-        // Register operator
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
-        
-        vm.prank(operator);
-        bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
-
-        // Create pod as user
-        vm.prank(user);
-        podManager.createPod(operator, userBtcAddress);
-
-        // Get the pod address
-        address podAddress = podManager.getUserPod(user);
-
-        // Check if the pod address is a contract
-        assertTrue(podAddress.code.length > 0, "Pod address should be a contract");
+    function testGetters() public view{
+        assertEq(pod.getBitcoinAddress(), bitcoinAddress);
+        assertEq(pod.getOperatorBtcPubKey(), operatorBtcPubKey);
+        assertEq(pod.getOperator(), operator);
+        assertEq(pod.getBitcoinBalance(), 0);
+        assertEq(pod.getSignedBitcoinWithdrawTransaction(), "");
     }
 }
