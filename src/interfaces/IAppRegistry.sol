@@ -22,7 +22,6 @@ interface IAppRegistry {
      * @param REGISTERED App is registered
      */
     enum AppRegistrationStatus { UNREGISTERED, REGISTERED }
-
     /**
      * @notice Emitted when registration status changes
      * @param app The address of the app

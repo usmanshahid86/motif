@@ -25,40 +25,41 @@ interface IBitcoinPodManager {
 
     /**
      * @notice Gets the pod address associated with a user
-     * @param user The address of the user
-     * @return The address of the user's pod
+     * @param user The address of the user to lookup
+     * @return address The address of the user's pod, or zero address if none exists
      */
     function getUserPod(address user) external view returns (address);
 
-    /**
+   /**
      * @notice Gets the app contract address that a pod is delegated to
-     * @param pod The address of the pod
-     * @return The address of the app contract the pod is delegated to
+     * @param pod The address of the pod to lookup
+     * @return address The address of the app contract the pod is delegated to, or zero address if not delegated
      */
     function getPodApp(address pod) external view returns (address);
 
-     /**
-     * @notice Retrieves the Bitcoin deposit request for a pod
-     * @param pod The address of the pod 
-     * @return BitcoinDepositRequest memory The deposit request for the pod
+    /**
+     * @notice Gets the deposit request details for a pod (alias of getPodDepositRequest)
+     * @param pod The address of the pod to lookup
+     * @return BitcoinDepositRequest struct containing the deposit transaction ID, amount and pending status
      */
     function getBitcoinDepositRequest(address pod) external view returns (BitcoinDepositRequest memory);
     /**
-     * @notice Retrieves the withdrawal address for a pod
-     * @param pod The address of the pod 
-     * @return bytes memory The bitcoin withdrawal address for the pod
+     * @notice Gets the withdrawal address set for a pod (alias of getPodWithdrawalAddress)
+     * @param pod The address of the pod to lookup
+     * @return The Bitcoin withdrawal address as bytes
      */
     function getBitcoinWithdrawalAddress(address pod) external view returns (bytes memory );
 
-    /**
+   /**
      * @notice Gets the total value locked across all pods
-     * @return The total value locked in satoshis
+     * @return uint256 The total value locked in satoshis
      */
     function getTotalTVL() external view returns (uint256);
 
-    /**
+    
+     /**
      * @notice Gets the address of the BitDSM Service Manager contract
-     * @return The address of the BitDSM Service Manager
+     * @return address The address of the BitDSM Service Manager contract
      */
     function getBitDSMServiceManager() external view returns (address);
 

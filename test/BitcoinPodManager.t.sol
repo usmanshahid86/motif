@@ -186,30 +186,6 @@ contract BitcoinPodManagerTest is Test {
         vm.stopPrank();
     }
 
-    // function testOperatorCanMintAndBurn() public {
-    //     // Register operator and create pod
-    //     ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
-    //     vm.prank(operator);
-    //     bitDSMRegistry.registerOperatorWithSignature(operatorSignature, operator, operatorBtcPubKey);
-    //     vm.prank(user);
-    //     podManager.createPod(operator, userBtcAddress);
-        
-    //     address podAddress = podManager.userToPod(user);
-    //     BitcoinPod pod = BitcoinPod(podAddress);
-
-    //     vm.startPrank(operator);
-        
-    //     // Test mint
-    //     podManager.mintBitcoin(podAddress, 100);
-    //     assertEq(pod.getBitcoinBalance(), 100, "Balance should be 100 after minting");
-
-    //     // Test burn
-    //     podManager.burnBitcoin(podAddress, 50);
-    //     assertEq(pod.getBitcoinBalance(), 50, "Balance should be 50 after burning");
-
-    //     vm.stopPrank();
-    // }
-
     function testPodCreationAndOwnership() public {
         // Register operator
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;

@@ -3,7 +3,7 @@ pragma solidity ^0.8.12;
 
 import "forge-std/Test.sol";
 import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
-import {BitcoinPod} from "../src/core/BitcoinPod.sol";
+import {IBitcoinPod} from "../src/interfaces/IBitcoinPod.sol";
 
 import {ECDSAServiceManagerBase} from "@eigenlayer-middleware/src/unaudited/ECDSAServiceManagerBase.sol";
 import {ISignatureUtils} from "@eigenlayer/src/contracts/interfaces/ISignatureUtils.sol";
@@ -38,9 +38,14 @@ contract MockECDSAStakeRegistry {
 
 contract BitDSMServiceManagerTest is Test {
     using ECDSA for bytes32;
-
+     struct BitcoinDepositRequest {
+        bytes32 transactionId;
+        uint256 amount;
+        bool isPending;
+    }
     BitDSMServiceManager public serviceManager;
-    BitcoinPod public pod;
+    address public podAddress;
+    BitcoinPodManager public podManager;
 
     MockAVSDirectory public mockAVSDirectory;
     MockECDSAStakeRegistry public mockStakeRegistry;
@@ -73,24 +78,31 @@ contract BitDSMServiceManagerTest is Test {
             address(0), // mock delegation manager
             address(0) // mock rewards coordinator 
         );
-       // bitcoinPodManager = new BitcoinPodManager(
-         //   address(serviceManager)
-        //);
-        pod = new BitcoinPod(
-            address(serviceManager)
-        );
-        pod.initialize(owner, operator, operatorBtcPubKey, bitcoinAddress);
+        podManager = new BitcoinPodManager();
+        podManager.initialize(address(0x001), address(0x002), address(serviceManager));
+        vm.prank(owner);
+        podAddress = podManager.createPod(operator, bitcoinAddress);
+
     }
 
     function testConfirmDeposit() public {
+    // 1. Create a deposit request
+        bytes32 txId = bytes32("example_tx_id");
         uint256 amount = 1;
-        // create a transaction confirmation request first         
+        
+        // Create deposit request through pod manager
+        vm.prank(owner);
+        podManager.verifyBitcoinDepositRequest(
+            podAddress,
+            txId,
+            amount
+        );
         // Create deposit confirmation message
         bytes32 messageHash = keccak256(abi.encodePacked(
-            address(pod),
+            podAddress,
             operator,
             amount,
-          //  transactionId,
+            txId,
             true
         ));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
@@ -101,10 +113,10 @@ contract BitDSMServiceManagerTest is Test {
 
         // Confirm deposit as operator
         vm.prank(operator);
-        serviceManager.confirmDeposit(address(pod), signature);
+        serviceManager.confirmDeposit(podAddress, signature);
         
-        // Assert pod state changes
-        assertEq(pod.bitcoinBalance(), amount);
+        // 6. Assert pod state changes
+        assertEq(IBitcoinPod(podAddress).getBitcoinBalance(), amount);
     }
 
     function testWithdrawBitcoinPSBT() public {
@@ -113,7 +125,7 @@ contract BitDSMServiceManagerTest is Test {
         
         // Create PSBT signature message
         bytes32 messageHash = keccak256(abi.encodePacked(
-            address(pod),
+            podAddress,
             amount,
             psbtTx,
             bitcoinAddress
@@ -126,11 +138,11 @@ contract BitDSMServiceManagerTest is Test {
 
         // Expect event emission
         vm.expectEmit(true, true, false, true);
-        emit BitcoinWithdrawalTransactionSigned(address(pod), operator, amount);
+        emit BitcoinWithdrawalTransactionSigned(podAddress, operator, amount);
 
         // Submit PSBT as operator
         vm.prank(operator);
-        serviceManager.withdrawBitcoinPSBT(address(pod), amount, psbtTx, signature);
+        serviceManager.withdrawBitcoinPSBT(podAddress, amount, psbtTx, signature);
     }
     
     function testWithdrawBitcoinCompleteTx() public {
@@ -139,7 +151,7 @@ contract BitDSMServiceManagerTest is Test {
         
         // Create complete tx signature message
         bytes32 messageHash = keccak256(abi.encodePacked(
-            address(pod),
+            podAddress,
             amount,
             completeTx
         ));
@@ -151,7 +163,7 @@ contract BitDSMServiceManagerTest is Test {
 
         // Submit complete transaction as operator
         vm.prank(operator);
-        serviceManager.withdrawBitcoinCompleteTx(address(pod), amount, completeTx, signature);
+        serviceManager.withdrawBitcoinCompleteTx(podAddress, amount, completeTx, signature);
     }
 
     function testConfirmWithdrawal() public {
@@ -159,7 +171,7 @@ contract BitDSMServiceManagerTest is Test {
         
         // Create withdrawal confirmation message
         bytes32 messageHash = keccak256(abi.encodePacked(
-            address(pod),
+            podAddress,
             transaction
         ));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
@@ -170,7 +182,7 @@ contract BitDSMServiceManagerTest is Test {
 
         // Confirm withdrawal as operator
         vm.prank(operator);
-        serviceManager.confirmWithdrawal(address(pod), transaction, signature);
+        serviceManager.confirmWithdrawal(podAddress, transaction, signature);
     }
 
 
@@ -180,7 +192,7 @@ contract BitDSMServiceManagerTest is Test {
         // Try to confirm deposit from unauthorized address
         vm.prank(address(0xbad));
         vm.expectRevert("Unauthorized operator");
-        serviceManager.confirmDeposit(address(pod), signature);
+        serviceManager.confirmDeposit(podAddress, signature);
     }
 
     function testFailWithdrawBitcoinPSBTInvalidSignature() public {
@@ -190,7 +202,7 @@ contract BitDSMServiceManagerTest is Test {
 
         vm.prank(operator);
         vm.expectRevert("Invalid signature");
-        serviceManager.withdrawBitcoinPSBT(address(pod), amount, psbtTx, invalidSignature);
+        serviceManager.withdrawBitcoinPSBT(podAddress, amount, psbtTx, invalidSignature);
     }
 
     function testFailWithdrawBitcoinCompleteTxUnauthorized() public {
@@ -201,7 +213,7 @@ contract BitDSMServiceManagerTest is Test {
 
         vm.prank(address(0xbad));
         vm.expectRevert("Unauthorized operator");
-        serviceManager.withdrawBitcoinCompleteTx(address(pod), amount, completeTx, signature);
+        serviceManager.withdrawBitcoinCompleteTx(podAddress, amount, completeTx, signature);
     }
 
     function testFailConfirmWithdrawalInvalidTransaction() public {
@@ -210,7 +222,7 @@ contract BitDSMServiceManagerTest is Test {
 
         vm.prank(operator);
         vm.expectRevert("Invalid transaction");
-        serviceManager.confirmWithdrawal(address(pod), invalidTx, signature);
+        serviceManager.confirmWithdrawal(podAddress, invalidTx, signature);
     }
 }
 

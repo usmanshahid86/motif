@@ -105,70 +105,42 @@ contract BitcoinPodManager is
         _totalTVL = 0;
     }
     // Implement interface getters
-    /**
-     * @notice Gets the pod address associated with a user
-     * @param user The address of the user to lookup
-     * @return address The address of the user's pod, or zero address if none exists
-     */
+    // @inheritdoc IBitcoinPodManager
     function getUserPod(address user) external view override returns (address) {
         return _userToPod[user];
     }
 
-    /**
-     * @notice Gets the app contract address that a pod is delegated to
-     * @param pod The address of the pod to lookup
-     * @return address The address of the app contract the pod is delegated to, or zero address if not delegated
-     */
+    // @inheritdoc IBitcoinPodManager
     function getPodApp(address pod) external view override returns (address) {
         return _podToApp[pod];
     }
 
-    /**
-     * @notice Gets the total value locked across all pods
-     * @return uint256 The total value locked in satoshis
-     */
+    // @inheritdoc IBitcoinPodManager
     function getTotalTVL() external view override returns (uint256) {
         return _totalTVL;
     }
 
-    /**
-     * @notice Gets the address of the BitDSM Service Manager contract
-     * @return address The address of the BitDSM Service Manager contract
-     */
+    
     function getBitDSMServiceManager() external view override returns (address) {
         return _bitDSMServiceManager;
     }
 
-    /**
-     * @notice Gets the address of the App Registry contract
-     * @return address The address of the App Registry contract
-     */
+    // @inheritdoc IBitcoinPodManager
     function getAppRegistry() external view override returns (address) {
         return _appRegistry;
     }
 
-    /**
-     * @notice Gets the address of the BitDSM Registry contract
-     * @return The address of the BitDSM Registry contract
-     */
+    // @inheritdoc IBitcoinPodManager
     function getBitDSMRegistry() external view override returns (address) {
         return _bitDSMRegistry;
     }
 
-    /**
-     * @notice Gets the deposit request details for a pod (alias of getPodDepositRequest)
-     * @param pod The address of the pod to lookup
-     * @return BitcoinDepositRequest struct containing the deposit transaction ID, amount and pending status
-     */
+    // @inheritdoc IBitcoinPodManager
     function getBitcoinDepositRequest(address pod) external view override returns (BitcoinDepositRequest memory) {
         return _podToBitcoinDepositRequest[pod];
     }
 
-    /**
-     * @notice Gets the withdrawal address set for a pod (alias of getPodWithdrawalAddress)
-     * @param pod The address of the pod to lookup
-     * @return The Bitcoin withdrawal address as bytes
-     */
+    // @inheritdoc IBitcoinPodManager
     function getBitcoinWithdrawalAddress(address pod) external view override returns (bytes memory) {
         return _podToWithdrawalAddress[pod];
     }
