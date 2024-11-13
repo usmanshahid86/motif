@@ -3,13 +3,14 @@ pragma solidity ^0.8.12;
 
 import "forge-std/Test.sol";
 import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
-import {IBitcoinPod} from "../src/interfaces/IBitcoinPod.sol";
-
+import "./mocks/MockBitcoinPod.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ECDSAServiceManagerBase} from "@eigenlayer-middleware/src/unaudited/ECDSAServiceManagerBase.sol";
 import {ISignatureUtils} from "@eigenlayer/src/contracts/interfaces/ISignatureUtils.sol";
 import {IAVSDirectory} from "@eigenlayer/src/contracts/interfaces/IAVSDirectory.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {BitcoinPodManager} from "../src/core/BitcoinPodManager.sol";
+import {MockBitcoinPodManager} from "./mocks/MockBitcoinPodManager.sol";
 contract MockAVSDirectory is IAVSDirectory {
     function registerOperatorToAVS(address, ISignatureUtils.SignatureWithSaltAndExpiry memory) external pure {}
     function deregisterOperatorFromAVS(address) external pure {}
@@ -38,14 +39,9 @@ contract MockECDSAStakeRegistry {
 
 contract BitDSMServiceManagerTest is Test {
     using ECDSA for bytes32;
-     struct BitcoinDepositRequest {
-        bytes32 transactionId;
-        uint256 amount;
-        bool isPending;
-    }
     BitDSMServiceManager public serviceManager;
     address public podAddress;
-    BitcoinPodManager public podManager;
+    MockBitcoinPodManager public podManager;
 
     MockAVSDirectory public mockAVSDirectory;
     MockECDSAStakeRegistry public mockStakeRegistry;
@@ -59,6 +55,34 @@ contract BitDSMServiceManagerTest is Test {
     bytes public bitcoinAddress;
     
     event BitcoinWithdrawalTransactionSigned(address indexed pod, address indexed operator, uint256 amount);
+    function deployProxiedServiceManager() internal returns (BitDSMServiceManager) {
+    // Deploy ProxyAdmin if not already deployed
+    ProxyAdmin proxyAdmin = new ProxyAdmin();
+    
+    // Deploy implementation
+    BitDSMServiceManager impl = new BitDSMServiceManager(
+        address(mockAVSDirectory),
+        address(mockStakeRegistry),
+        address(0), // rewards coordinator
+        address(0)  // delegation manager
+    );
+
+    // Deploy and initialize proxy in one step
+    TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+        address(impl),
+        address(proxyAdmin),
+        abi.encodeWithSelector(
+            BitDSMServiceManager.initialize.selector,
+            owner,
+            address(0), // middleware utils
+            address(podManager)
+        )
+    );
+
+    return BitDSMServiceManager(address(proxy));
+}
+
+    
     function setUp() public {
         owner = address(this);
         operatorPrivateKey = 0x1; // This is the private key for operator1
@@ -67,28 +91,32 @@ contract BitDSMServiceManagerTest is Test {
 
         // Mock Bitcoin-related data
         operatorBtcPubKey = hex"02abc123"; // Example public key
-        bitcoinAddress = hex"1234567890"; // Example Bitcoin address (padded to even length)
-        
+        bitcoinAddress = hex"1234567890"; // Example Bitcoin address
+
         mockAVSDirectory = new MockAVSDirectory();
         mockStakeRegistry = new MockECDSAStakeRegistry();
-        // Deploy service manager
-        serviceManager = new BitDSMServiceManager(
-            address(mockAVSDirectory),
-            address(mockStakeRegistry),
-            address(0), // mock delegation manager
-            address(0) // mock rewards coordinator 
-        );
-        podManager = new BitcoinPodManager();
-        podManager.initialize(address(0x001), address(0x002), address(serviceManager));
+
+        // First create the pod manager with a temporary address
+        podManager = new MockBitcoinPodManager(address(1)); // temporary address
+
+        
+       
+        serviceManager = deployProxiedServiceManager();
+        
+        podManager.updateServiceManager(address(serviceManager));
+
+        // Create pod
         vm.prank(owner);
         podAddress = podManager.createPod(operator, bitcoinAddress);
-
     }
 
     function testConfirmDeposit() public {
-    // 1. Create a deposit request
+        // 1. Create a deposit request
         bytes32 txId = bytes32("example_tx_id");
         uint256 amount = 1;
+        
+        // Add verification that operator is registered
+        assertTrue(mockStakeRegistry.operatorRegistered(operator), "Operator not registered");
         
         // Create deposit request through pod manager
         vm.prank(owner);
@@ -97,6 +125,11 @@ contract BitDSMServiceManagerTest is Test {
             txId,
             amount
         );
+
+        // Verify deposit request was created successfully
+       bool requestPending = podManager.getBitcoinDepositRequest(podAddress).isPending;
+        assertTrue(requestPending, "Deposit request not pending");
+
         // Create deposit confirmation message
         bytes32 messageHash = keccak256(abi.encodePacked(
             podAddress,
@@ -105,30 +138,39 @@ contract BitDSMServiceManagerTest is Test {
             txId,
             true
         ));
-        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
+         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
         
-        // Sign message with operator's private key
+        // // Sign message with operator's private key
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(operatorPrivateKey, ethSignedMessageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        // Confirm deposit as operator
+        // // Verify signature is valid
+        address recoveredSigner = ethSignedMessageHash.recover(signature);
+        assertEq(recoveredSigner, operator, "Invalid signature recovery");
+
+        // // Confirm deposit as operator
         vm.prank(operator);
         serviceManager.confirmDeposit(podAddress, signature);
         
-        // 6. Assert pod state changes
+        // // Assert pod state changes
         assertEq(IBitcoinPod(podAddress).getBitcoinBalance(), amount);
     }
 
     function testWithdrawBitcoinPSBT() public {
-        uint256 amount = 1 ether;
-        bytes memory psbtTx = hex"0200000001"; // Example PSBT transaction
+        uint256 amount = 1;
+        bytes memory withdrawAddress = hex"0200000001"; // Example withdraw address
+        bytes memory psbtTx = hex"0200000003"; // Example psbt transaction
         
+        // client send the psbt to the BitcoinPodManager to create a withdrawal request
+        vm.prank(owner);
+        podManager.withdrawBitcoinPSBTRequest(podAddress, withdrawAddress);
+
         // Create PSBT signature message
         bytes32 messageHash = keccak256(abi.encodePacked(
             podAddress,
             amount,
             psbtTx,
-            bitcoinAddress
+            withdrawAddress
         ));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
         
@@ -136,24 +178,30 @@ contract BitDSMServiceManagerTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(operatorPrivateKey, ethSignedMessageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        // Expect event emission
+        // Submit PSBT as operator
+        vm.prank(operator);
         vm.expectEmit(true, true, false, true);
         emit BitcoinWithdrawalTransactionSigned(podAddress, operator, amount);
 
-        // Submit PSBT as operator
-        vm.prank(operator);
         serviceManager.withdrawBitcoinPSBT(podAddress, amount, psbtTx, signature);
+       
     }
     
     function testWithdrawBitcoinCompleteTx() public {
-        uint256 amount = 1 ether;
-        bytes memory completeTx = hex"0200000001"; // Example complete transaction
+        uint256 amount = 1;
+        bytes memory withdrawAddress = hex"0200000001"; // Example withdraw address
+        bytes memory completeTx = hex"0200000003"; // Example complete transaction
+        
+        // client send the request to the BitcoinPodManager to create a withdrawal request
+        vm.prank(owner);
+        podManager.withdrawBitcoinCompleteTxRequest(podAddress, completeTx, withdrawAddress);
         
         // Create complete tx signature message
         bytes32 messageHash = keccak256(abi.encodePacked(
             podAddress,
             amount,
-            completeTx
+            completeTx,
+            withdrawAddress
         ));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
         
@@ -163,16 +211,23 @@ contract BitDSMServiceManagerTest is Test {
 
         // Submit complete transaction as operator
         vm.prank(operator);
+        vm.expectEmit(true, true, false, true);
+        emit BitcoinWithdrawalTransactionSigned(podAddress, operator, amount);
         serviceManager.withdrawBitcoinCompleteTx(podAddress, amount, completeTx, signature);
     }
 
     function testConfirmWithdrawal() public {
         bytes memory transaction = hex"0200000001"; // Example Bitcoin transaction
-        
+        // create mock withdrawal address
+        bytes memory withdrawAddress = hex"0200000001"; // Example withdraw address
+        // create a withdrawal request through pod manager
+        vm.prank(owner);
+        podManager.withdrawBitcoinCompleteTxRequest(podAddress, transaction, withdrawAddress);
         // Create withdrawal confirmation message
         bytes32 messageHash = keccak256(abi.encodePacked(
             podAddress,
-            transaction
+            transaction,
+            withdrawAddress
         ));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
         
@@ -183,6 +238,9 @@ contract BitDSMServiceManagerTest is Test {
         // Confirm withdrawal as operator
         vm.prank(operator);
         serviceManager.confirmWithdrawal(podAddress, transaction, signature);
+
+        // Assert pod state changes
+        assertEq(IBitcoinPod(podAddress).getBitcoinBalance(), 0);
     }
 
 
@@ -206,7 +264,7 @@ contract BitDSMServiceManagerTest is Test {
     }
 
     function testFailWithdrawBitcoinCompleteTxUnauthorized() public {
-        uint256 amount = 1 ether;
+        uint256 amount = 1;
         
         bytes memory completeTx = hex"0200000001";
         bytes memory signature = new bytes(65);
@@ -225,4 +283,8 @@ contract BitDSMServiceManagerTest is Test {
         serviceManager.confirmWithdrawal(podAddress, invalidTx, signature);
     }
 }
+
+
+
+
 
