@@ -426,4 +426,18 @@ contract BitcoinPodManager is
     function setSignedBitcoinWithdrawTransactionPod(address pod, bytes memory signedBitcoinWithdrawTransaction) external whenNotPaused onlyBitDSMServiceManager{
         IBitcoinPod(pod).setSignedBitcoinWithdrawTransaction(signedBitcoinWithdrawTransaction);
     }
+
+    /**
+     * @notice Pauses all contract functions
+     * @dev Only callable by contract owner
+     */    function pause() external onlyOwner {
+        _pause();
+    }
+  /**
+     * @notice Unpauses all contract functions
+     * @dev Only callable by contract owner
+     */
+    function unpause() external onlyOwner {
+        _unpause();
+    }
 }
