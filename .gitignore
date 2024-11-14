@@ -7,9 +7,6 @@ broadcast/
 /broadcast/*/31337/
 /broadcast/**/dry-run/
 
-# Docs
-docs/
-
 # Dotenv file
 .env
 # Ignore macOS .DS_Store files
@@ -31,4 +28,10 @@ dist/
 # Ignore TypeScript build artifacts
 dist/**/*.js
 dist/*.js.map
-dist/*.d.ts
+dist/*.d.tsls
+
+docs/book/
+docs/book.css
+docs/solidity.min.js
+docs/book.toml
+docs/.gitignore
