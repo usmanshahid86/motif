@@ -1,9 +1,9 @@
 
 
 # Contents
-- [core](/docs/src/core)
-- [interfaces](/docs/src/interfaces)
-- [libraries](/docs/src/libraries)
-- [storage](/docs/src/storage)
+- [core](/docs/src/src/core)
+- [interfaces](/docs/src/src/interfaces)
+- [libraries](/docs/src/src/libraries)
+- [storage](/docs/src/src/storage)
 
 
