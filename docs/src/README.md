@@ -1,5 +1,5 @@
 ## BitDSM : Bitcoin Delegated Staking Mechanism
-![Bitcoin Abstract Cover](./assets/cover.jpeg)
+![Bitcoin Abstract Cover](../../assets/cover.jpeg)
 
 **BitDSM brings native Bitcoin delegation to ethereum applications.**
 
