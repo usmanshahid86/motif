@@ -22,7 +22,7 @@ BOD is not a bridge nor does it mint any ERC-20. It is merely a way to delegate 
 
 BitcoinPods are bootstrapped using restaked security available to the AVS of Eigenlayer. BitcoinPods can be issued by operator sets with predetermined independent tasks, and can be secured either by an insurance built using BitDSM or with LRTs on Ethereum.
 
-Front end link: https://bod-frontend.vercel.app/app
+Front end link: https://bitdsm.vercel.app/
 
 ## Usage
 
