@@ -19,17 +19,17 @@ let chainId = 17000;
 const avsDeploymentData = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, `../bitdsm_addresses.json`), "utf8")
 );
-const bitDSMServiceManagerAddress = avsDeploymentData.BitDSMServiceManagerProxy;
-const bitDSMServiceManagerABI = JSON.parse(
+const bitDSMPodMangerAddress = avsDeploymentData.BitcoinPodManagerProxy;
+const bitDSMPodMangerABI = JSON.parse(
   fs.readFileSync(
-    path.resolve(__dirname, "../abis/BitDSMServiceManager.json"),
+    path.resolve(__dirname, "../abis/BitDSMPodManager.json"),
     "utf8"
   )
 );
 // Initialize contract objects from ABIs
-const bitDSMServiceManager = new ethers.Contract(
-  bitDSMServiceManagerAddress,
-  bitDSMServiceManagerABI,
+const BodManager = new ethers.Contract(
+  bitDSMPodMangerAddress,
+  bitDSMPodMangerABI,
   wallet
 );
 
@@ -44,28 +44,50 @@ function generateRandomName(): string {
     return randomName;
   }
 
-async function createNewTask(taskName: string) {
+  async function createNewPod(): Promise<string> {
+    try {
+      const tx = await BodManager.createPod(wallet.address, "0x965d5c75ae6c7a68761e6f9cf2657363bd97f11fc6727410adacd7f81368541b");
+      const receipt = await tx.wait();
+      return receipt.logs[0].args.pod;
+    } catch (error) {
+      console.error('Error sending transaction:', error);
+      throw error; // Add this line to properly handle errors
+    }
+  }
+
+
+  async function verifyBitcoinDeposit(
+    podAddr: string,
+    txHash: string,
+    amount: number,
+): Promise<void> {
   try {
-    // Send a transaction to the createNewTask function
-    const tx = await bitDSMServiceManager.createNewTask(taskName);
-    
-    // Wait for the transaction to be mined
+    const tx = await BodManager.verifyBitcoinDepositRequest(
+      podAddr,
+      txHash,
+      amount
+    );
     const receipt = await tx.wait();
-    
-    console.log(`Transaction successful with hash: ${receipt.hash}`);
   } catch (error) {
-    console.error('Error sending transaction:', error);
+    console.error('Error sending transaction:', error); // Add this line to properly handle errors
   }
 }
 
+// Example usage:
+// await verifyBitcoinDeposit(
+//     "0x3fab0a58446da7a0703c0856a7c05abfa5a0f964",
+//     "0xcFd4E3033436f838d0e0f677DdB7ce3213db5d5A",
+//     "0xf21abe91dc7751516e22059abe925df95fa19a63669ed8a5b31f53312c3b59af",
+//     10000,
+//     provider,
+//     "cc0feedf5de50d545ee4428ab54300c715265470be4d9f338336a87c54d31a45"
+// );
+
 // Function to create a new task with a random name every 15 seconds
-function startCreatingTasks() {
-  setInterval(() => {
-    const randomName = generateRandomName();
-    console.log(`Creating new task with name: ${randomName}`);
-    createNewTask(randomName);
-  }, 5000);
+async function CreatePodandDeposit() {
+   let podAddress = await createNewPod();
+   await verifyBitcoinDeposit(podAddress, "0xf21abe91dc7751516e22059abe925df95fa19a63669ed8a5b31f53312c3b59af", 10000);
 }
 
 // Start the process
-startCreatingTasks();
+CreatePodandDeposit();
