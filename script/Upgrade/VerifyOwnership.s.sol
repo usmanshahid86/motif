@@ -3,7 +3,7 @@ pragma solidity ^0.8.12;
 
 import {Script} from "forge-std/Script.sol";
 //import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
-import {AppRegistry} from "../src/core/AppRegistry.sol";
+import {AppRegistry} from "../../src/core/AppRegistry.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {console} from "forge-std/console.sol";

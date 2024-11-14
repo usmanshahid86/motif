@@ -2,7 +2,7 @@
 pragma solidity ^0.8.12;
 
 import {Script} from "forge-std/Script.sol";
-import {BitDSMServiceManager} from "../src/core/BitDSMServiceManager.sol";
+import {BitDSMServiceManager} from "../../src/core/BitDSMServiceManager.sol";
 import {console} from "forge-std/console.sol";
 
 contract VerifyMetadataUpdate is Script {
