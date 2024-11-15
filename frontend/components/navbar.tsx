@@ -1,22 +1,71 @@
-import Link from "next/link";
+"use client"
 import React from "react";
+import Logo from "./logo";
+import Link from "next/link";
+import MobileNav from "./mobile-nav";
+import ConnectWallet from './connect-wallet';
 
-function Navbar() {
+const NavLink = ({
+  href,
+  title,
+  target,
+}: {
+  href: string;
+  title: string;
+  target?: string;
+}) => {
   return (
-    <header className="flex h-14 w-full items-center px-4 text-black lg:px-6 border-b">
-      <Link className="flex items-center justify-center" href="/">
-        <span className="font-semibold">BitDSM</span>
-      </Link>
-      <nav className="ml-auto flex gap-4 sm:gap-6">
-        <Link
-          className="text-sm font-semibold underline-offset-4 hover:underline"
-          href="/app"
-        >
-          App
-        </Link>
-      </nav>
-    </header>
+    <Link target={target} className="hover:text-brand-secondary" href={href}>
+      {title}
+    </Link>
   );
-}
+};
 
-export default Navbar;
+const NavigationItems = [
+  {
+    href: "/app",
+    title: "Stake",
+  },
+  {
+    href: "https://github.com/BitDSM",
+    title: "Github",
+    target: "_blank",
+  },
+  {
+    href: "/app/dashboard",
+    title: "Dashboard",
+  },
+];
+
+const Navbar = () => {
+  return (
+    <>
+      <div className="text-center items-center justify-center flex w-full py-2 brand-gradient-bg text-white">
+        <span>
+          BitDSM is now live on the Holesky Testnet/Bitcoin Signet !
+        </span>
+      </div>
+      <nav className="border-b w-full bg-background">
+        <div className="mx-auto flex items-center px-6 py-4 max-w-screen-xl w-full justify-between">
+          <Link className="hover:opacity-60" href="/">
+            <Logo className="w-28 md:block" />
+          </Link>
+          <div className="hidden md:flex items-center space-x-4 ml-auto">
+            {NavigationItems.map((item) => (
+              <NavLink
+                target={item.target}
+                key={item.href}
+                href={item.href}
+                title={item.title}
+              />
+            ))}
+            <ConnectWallet />
+          </div>
+          <MobileNav navItems={NavigationItems} />
+        </div>
+      </nav>
+    </>
+  );
+};
+
+export default Navbar

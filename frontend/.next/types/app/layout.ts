@@ -1,4 +1,4 @@
-// File: /Users/kennyng/Documents/ethglobal/BitDSM/frontend/app/layout.tsx
+// File: /Users/kennyng/Documents/twilight/twilight-staking/app/layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

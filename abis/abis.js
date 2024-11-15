@@ -15,7 +15,8 @@ const contractsToExtract = [
   'BitDSMServiceManager',
   'BitcoinPodManager',
   'AppRegistry',
-  'BitcoinPod'
+  'BitcoinPod',
+  "IBitcoinPodManager"
 ];
 
 if (!fs.existsSync(abiDir)) {

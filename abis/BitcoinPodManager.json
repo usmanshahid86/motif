@@ -283,6 +283,24 @@
   },
   {
     "type": "function",
+    "name": "setSignedBitcoinWithdrawTransactionPod",
+    "inputs": [
+      {
+        "name": "pod",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "signedBitcoinWithdrawTransaction",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "transferOwnership",
     "inputs": [
       {

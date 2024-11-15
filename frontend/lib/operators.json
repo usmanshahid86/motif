@@ -1,0 +1,25 @@
+{
+  "operators": [
+    {
+      "id": "chorus",
+      "name": "Chorus",
+      "address": "0x60b3b41240Fb9d353acE1E37B0CE79054154eA40",
+      "tvl": "15 BTC",
+      "link": "http://142.93.159.73:8080"
+    },
+    {
+      "id": "exterio",
+      "name": "Exterio",
+      "address": "0x2Ac91055c7905727f8D6939c178195Ea185756bC",
+      "tvl": "10 BTC",
+      "link": "http://167.71.128.202:8080"
+    },
+    {
+      "id": "theta",
+      "name": "Theta",
+      "address": "0x1bbe3979fC24De62024Bd21FB0da2f27D07F47AD",
+      "tvl": "10 BTC",
+      "link": "http://138.197.145.239:8080"
+    }
+  ]
+}

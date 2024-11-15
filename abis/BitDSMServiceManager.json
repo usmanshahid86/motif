@@ -269,6 +269,19 @@
   },
   {
     "type": "function",
+    "name": "setBitcoinPodManager",
+    "inputs": [
+      {
+        "name": "bitcoinPodManager",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setRewardsInitiator",
     "inputs": [
       {

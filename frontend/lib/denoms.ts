@@ -1,13 +1,20 @@
 import Big from "big.js";
 
-export type BTCDenoms = "sats" | "BTC";
+export type BTCDenoms = "mBTC" | "sats" | "BTC";
 
 enum satsFactor {
+  "mBTC" = 100_000,
   "BTC" = 100_000_000,
+}
+
+enum mBTCFactor {
+  "sats" = 0.00001,
+  "BTC" = 1000,
 }
 
 enum BTCFactor {
   "sats" = 0.00000001,
+  "mBTC" = 0.001,
 }
 
 export default class BTC {
@@ -37,6 +44,10 @@ export default class BTC {
       }
       case "BTC": {
         factor = BTCFactor[this.currentDenom as keyof typeof BTCFactor];
+        break;
+      }
+      case "mBTC": {
+        factor = mBTCFactor[this.currentDenom as keyof typeof mBTCFactor];
         break;
       }
     }
