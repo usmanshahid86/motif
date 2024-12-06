@@ -18,6 +18,9 @@ contract BitDSMToken is
     ReentrancyGuardUpgradeable,
     ITokenInterface
 {
+    // Add initializing flag
+    bool private initializing;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -26,6 +29,7 @@ contract BitDSMToken is
     function initialize(
         address initialOwner
     ) public initializer {
+        initializing = true;  // Set flag before initialization
         __ERC20_init("BitDSM Token", "BDSM");
         __Ownable_init();
         _transferOwnership(initialOwner);
@@ -34,11 +38,10 @@ contract BitDSMToken is
 
         startTime = block.timestamp;
         lastEmissionTime = startTime;
-        emissionRate = BASE_RATE;
         _mint(initialOwner, INITIAL_SUPPLY);
-        maxSupplyCap = INITIAL_SUPPLY * 100;
+        maxSupplyCap = TARGET_TOTAL_SUPPLY;
+        initializing = false;  // Reset flag after initialization
 
-        // Initialize guardian system
         guardianList = new address[](0);
     }
 
@@ -65,9 +68,11 @@ contract BitDSMToken is
     }
 
     function _mint(address account, uint256 amount) internal virtual override {
-        uint256 day = block.timestamp / 1 days;
-        require(dailyMinted[day] + amount <= MAX_DAILY_MINT, "Daily mint limit");
-        dailyMinted[day] += amount;
+        if (!initializing) {
+            uint256 day = block.timestamp / 1 days;
+            require(dailyMinted[day] + amount <= MAX_DAILY_MINT, "Daily mint limit");
+            dailyMinted[day] += amount;
+        }
         super._mint(account, amount);
     }
 
@@ -91,7 +96,7 @@ contract BitDSMToken is
     }
 
     /**
-     * @dev Calculates and mints new tokens based on exponential emission curve
+     * @dev Calculates and mints new tokens based on declining emission curve
      * @param distributor Address to receive the new tokens
      */
     function emitNewTokens(address distributor) external nonReentrant whenEmissionsNotPaused {
@@ -101,24 +106,19 @@ contract BitDSMToken is
         uint256 timePassed = block.timestamp - startTime;
         require(timePassed <= EMISSION_PERIOD, "Emission period ended");
 
-        uint256 periods = timePassed / 1 days;
-        
-        uint256 newTotalSupply = INITIAL_SUPPLY;
-        for (uint256 i = 0; i < periods; i++) {
-            newTotalSupply = (newTotalSupply * BASE_RATE) / RATE_DENOMINATOR;
-        }
+        uint256 mintAmount = getNextEmissionAmount();
+        require(mintAmount > 0, "No tokens to emit");
         
         uint256 currentSupply = totalSupply();
-        uint256 mintAmount = newTotalSupply - currentSupply;
         
         // Check supply cap
         if (currentSupply + mintAmount > maxSupplyCap) {
-            revert SupplyCapExceeded(currentSupply + mintAmount, maxSupplyCap);
+            mintAmount = maxSupplyCap - currentSupply;
         }
 
         if (mintAmount > 0) {
             _mint(distributor, mintAmount);
-            emit TokensEmitted(mintAmount, newTotalSupply, block.timestamp);
+            emit TokensEmitted(mintAmount, currentSupply + mintAmount, block.timestamp);
         }
         
         lastEmissionTime = block.timestamp;
@@ -133,7 +133,8 @@ contract BitDSMToken is
     }
 
     /**
-     * @dev View function to calculate next emission amount
+     * @dev Calculate emission amount based on days passed
+     * Uses a linear decline rate from INITIAL_DAILY_EMISSION to a minimum over 365 days
      */
     function getNextEmissionAmount() public view returns (uint256) {
         uint256 timePassed = block.timestamp - startTime;
@@ -141,14 +142,21 @@ contract BitDSMToken is
             return 0;
         }
 
-        uint256 periods = timePassed / 1 days;
+        uint256 daysPassed = timePassed / 1 days;
         
-        uint256 newTotalSupply = INITIAL_SUPPLY;
-        for (uint256 i = 0; i < periods + 1; i++) {
-            newTotalSupply = (newTotalSupply * BASE_RATE) / RATE_DENOMINATOR;
+        // Calculate declining emission rate
+        // At day 0: 100% of INITIAL_DAILY_EMISSION
+        // At day 365: (100 - BASE_DECLINE_RATE)% of INITIAL_DAILY_EMISSION
+        uint256 emissionAmount = INITIAL_DAILY_EMISSION * 
+            (RATE_DENOMINATOR - ((daysPassed * BASE_DECLINE_RATE) / 365)) / 
+            RATE_DENOMINATOR;
+
+        // Cap at daily limit
+        if (emissionAmount > MAX_DAILY_MINT) {
+            return MAX_DAILY_MINT;
         }
-        
-        return newTotalSupply - totalSupply();
+
+        return emissionAmount;
     }
 
     /**
@@ -172,11 +180,21 @@ contract BitDSMToken is
      * @param days_ Number of days to calculate growth for
      */
     function calculateGrowthForDays(uint256 days_) external view returns (uint256) {
-        uint256 futureSupply = INITIAL_SUPPLY;
+        require(days_ <= 365, "Cannot calculate beyond emission period");
+        
+        uint256 totalSupply = INITIAL_SUPPLY;
         for (uint256 i = 0; i < days_; i++) {
-            futureSupply = (futureSupply * BASE_RATE) / RATE_DENOMINATOR;
+            uint256 emission = INITIAL_DAILY_EMISSION * 
+                (RATE_DENOMINATOR - ((i * BASE_DECLINE_RATE) / 365)) / 
+                RATE_DENOMINATOR;
+                
+            if (emission > MAX_DAILY_MINT) {
+                emission = MAX_DAILY_MINT;
+            }
+            
+            totalSupply += emission;
         }
-        return futureSupply;
+        return totalSupply;
     }
 
     /**
@@ -629,14 +647,22 @@ contract BitDSMToken is
     }
 
     // Override transfer functions to check for pause status
-    function transfer(address to, uint256 amount) public override whenNotPaused returns (bool) {
+    function transfer(address to, uint256 amount) public override whenNotPaused notBlacklisted(msg.sender) 
+    notBlacklisted(to) returns (bool) {
         return super.transfer(to, amount);
     }
 
-    function transferFrom(address from, address to, uint256 amount) public override whenNotPaused returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public override whenNotPaused notBlacklisted(msg.sender) 
+    notBlacklisted(to) returns (bool) {
         return super.transferFrom(from, to, amount);
     }
-
+    
+    function approve(address spender, uint256 amount) public override whenNotPaused 
+    notBlacklisted(msg.sender) 
+    notBlacklisted(spender) 
+    returns (bool) {
+        return super.approve(spender, amount);
+    }
     /**
      * @dev Cancel a scheduled timelock operation
      */
@@ -657,15 +683,4 @@ contract BitDSMToken is
             operationType
         );
     }
-
-    /**
-     * @dev Schedule emissions rate adjustment through timelock
-     * @param newRate New emission rate
-     */
-    function scheduleSetEmissionRate(uint256 newRate) external onlyOwner {
-        require(newRate != emissionRate, "Same rate");
-        require(newRate % 5 == 0, "Rate must be multiple of 5"); // If you want to limit granularity
-    }
-
-    
 }

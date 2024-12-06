@@ -20,10 +20,7 @@ contract DeployUpgradeableToken is Script {
         // Prepare initialization data
         bytes memory initData = abi.encodeWithSelector(
             BitDSMToken.initialize.selector,
-            msg.sender,  // initialOwner
-            "BitDSM Token",  // name
-            "BDSM"  // symbol
-        );
+            msg.sender);  // initialOwner
 
         // Deploy transparent proxy
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
@@ -54,6 +51,17 @@ contract DeployUpgradeableToken is Script {
         // Transfer token ownership to timelock
         token.transferOwnership(address(timelockContract));
 
+        // Setup initial guardians (minimum 3 required)
+        //token.scheduleAddGuardian(msg.sender);
+        //token.scheduleAddGuardian(address(0x123)); // Add second guardian
+        //token.scheduleAddGuardian(address(0x456)); // Add third guardian
+
+        // Note: Guardian additions will need to be executed after the timelock delay
+        // This should be done in a separate transaction after GUARDIAN_TIMELOCK_DELAY (3 days)
         vm.stopBroadcast();
+        console.log("Token Implementation deployed to:", address(implementation));
+        console.log("Proxy Admin deployed to:", address(proxyAdmin));
+        console.log("Token Proxy deployed to:", address(proxy));
+        console.log("Timelock deployed to:", address(timelockContract));
     }
 } 

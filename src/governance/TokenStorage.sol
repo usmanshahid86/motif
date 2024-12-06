@@ -40,9 +40,9 @@ contract TokenStorage is Initializable {
     
     // Constants
     uint256 public constant INITIAL_SUPPLY = 1000000 * 10**18;
-    uint256 public constant BASE_RATE = 115;
-    uint256 public constant MAX_RATE = 120;
-    uint256 public constant MIN_RATE = 100;
+    uint256 public constant MAX_DAILY_MINT = 500000 * 10**18;
+    uint256 public constant INITIAL_DAILY_EMISSION = 500000 * 10**18;
+    uint256 public constant BASE_DECLINE_RATE = 50;
     uint256 public constant RATE_DENOMINATOR = 100;
     uint256 public constant EMISSION_PERIOD = 365 days;
     uint256 public constant TIMELOCK_MIN_DELAY = 2 days;
@@ -50,7 +50,7 @@ contract TokenStorage is Initializable {
     uint256 public constant EMERGENCY_ACTION_TIMEOUT = 3 days;
     uint256 public constant MIN_GUARDIANS = 3;
     uint256 public constant GUARDIAN_TIMELOCK_DELAY = 3 days;
-    uint256 public constant MAX_DAILY_MINT = 1000000 * 10**18;
+    uint256 public constant TARGET_TOTAL_SUPPLY = 140000000 * 10**18;
     
     // Version control
     uint256 public constant VERSION = 1;
