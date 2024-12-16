@@ -38,19 +38,27 @@ contract TokenStorage is Initializable {
     // Blacklist storage
     mapping(address => bool) public blacklisted;
     
+    // Base units (18 decimals)
+    uint256 public constant DECIMALS = 18;
+    uint256 public constant ONE_TOKEN = 10**DECIMALS;
+    
+    // Total supply: 21 million tokens
+    uint256 public constant TOTAL_SUPPLY = 21_000_000 * ONE_TOKEN;
+    uint256 public constant LOCKED_SUPPLY = TOTAL_SUPPLY / 2;  // 10.5M tokens
+    
+    // First period (0-4 years): 7,200 tokens per day
+    uint256 public constant INITIAL_DAILY_EMISSION = 7_200 * ONE_TOKEN;
+    
+    uint256 public constant EMISSION_PERIOD = 20 * 365 days;   // 20 years
+    uint256 public constant HALVING_PERIOD = 4 * 365 days;     // 4 years
+    
     // Constants
-    uint256 public constant INITIAL_SUPPLY = 1000000 * 10**18;
-    uint256 public constant MAX_DAILY_MINT = 500000 * 10**18;
-    uint256 public constant INITIAL_DAILY_EMISSION = 500000 * 10**18;
-    uint256 public constant BASE_DECLINE_RATE = 50;
-    uint256 public constant RATE_DENOMINATOR = 100;
-    uint256 public constant EMISSION_PERIOD = 365 days;
+    uint256 public constant MAX_DAILY_MINT = INITIAL_DAILY_EMISSION;
     uint256 public constant TIMELOCK_MIN_DELAY = 2 days;
     uint256 public constant EMERGENCY_COOLDOWN = 1 days;
     uint256 public constant EMERGENCY_ACTION_TIMEOUT = 3 days;
     uint256 public constant MIN_GUARDIANS = 3;
     uint256 public constant GUARDIAN_TIMELOCK_DELAY = 3 days;
-    uint256 public constant TARGET_TOTAL_SUPPLY = 140000000 * 10**18;
     
     // Version control
     uint256 public constant VERSION = 1;

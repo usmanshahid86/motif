@@ -18,7 +18,14 @@ contract BitDSMToken is
     ReentrancyGuardUpgradeable,
     ITokenInterface
 {
-    // Add initializing flag
+    // Add new events for accumulated emissions
+    event AccumulatedEmission(
+        uint256 daysAccumulated,
+        uint256 totalAmount,
+        uint256 newTotalSupply,
+        uint256 timestamp
+    );
+
     bool private initializing;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -29,7 +36,7 @@ contract BitDSMToken is
     function initialize(
         address initialOwner
     ) public initializer {
-        initializing = true;  // Set flag before initialization
+        initializing = true;
         __ERC20_init("BitDSM Token", "BDSM");
         __Ownable_init();
         _transferOwnership(initialOwner);
@@ -38,9 +45,9 @@ contract BitDSMToken is
 
         startTime = block.timestamp;
         lastEmissionTime = startTime;
-        _mint(initialOwner, INITIAL_SUPPLY);
-        maxSupplyCap = TARGET_TOTAL_SUPPLY;
-        initializing = false;  // Reset flag after initialization
+        _mint(initialOwner, LOCKED_SUPPLY);
+        maxSupplyCap = TOTAL_SUPPLY;
+        initializing = false;
 
         guardianList = new address[](0);
     }
@@ -90,38 +97,94 @@ contract BitDSMToken is
      * @param newCap New maximum supply cap
      */
     function setMaxSupplyCap(uint256 newCap) external onlyOwner {
-        require(newCap >= totalSupply(), "Cap cannot be less than current supply");
+        require(newCap >= totalSupply() && newCap <= TOTAL_SUPPLY, "Invalid cap");
         maxSupplyCap = newCap;
         emit MaxSupplyCapUpdated(newCap);
     }
 
     /**
-     * @dev Calculates and mints new tokens based on declining emission curve
+     * @dev Calculates and mints accumulated tokens based on days passed
      * @param distributor Address to receive the new tokens
+     * @return (uint256, uint256) Amount minted and days accumulated
      */
-    function emitNewTokens(address distributor) external nonReentrant whenEmissionsNotPaused {
-        require(block.timestamp >= lastEmissionTime + 1 days, "Wait 24 hours between emissions");
+    function emitNewTokens(address distributor) 
+        external 
+        nonReentrant 
+        whenEmissionsNotPaused 
+        returns (uint256, uint256) 
+    {
         require(distributor != address(0), "Invalid distributor address");
         
-        uint256 timePassed = block.timestamp - startTime;
-        require(timePassed <= EMISSION_PERIOD, "Emission period ended");
+        uint256 timePassed = block.timestamp - lastEmissionTime;
+        require(timePassed >= 1 days, "Wait 24 hours between emissions");
+        
+        uint256 totalTimePassed = block.timestamp - startTime;
+        require(totalTimePassed <= EMISSION_PERIOD, "Emission period ended");
 
-        uint256 mintAmount = getNextEmissionAmount();
-        require(mintAmount > 0, "No tokens to emit");
+        // Calculate accumulated days and amounts
+        uint256 daysToEmit = timePassed / 1 days;
+        uint256 totalMintAmount = 0;
         
-        uint256 currentSupply = totalSupply();
-        
-        // Check supply cap
-        if (currentSupply + mintAmount > maxSupplyCap) {
-            mintAmount = maxSupplyCap - currentSupply;
+        for(uint256 i = 0; i < daysToEmit; i++) {
+            uint256 mintAmount = getNextEmissionAmount();
+            if (mintAmount == 0) break;
+            
+            if (totalSupply() + totalMintAmount + mintAmount > TOTAL_SUPPLY) {
+                mintAmount = TOTAL_SUPPLY - totalSupply() - totalMintAmount;
+                totalMintAmount += mintAmount;
+                break;
+            }
+            
+            totalMintAmount += mintAmount;
         }
-
-        if (mintAmount > 0) {
-            _mint(distributor, mintAmount);
-            emit TokensEmitted(mintAmount, currentSupply + mintAmount, block.timestamp);
+        
+        if (totalMintAmount > 0) {
+            _mint(distributor, totalMintAmount);
+            emit AccumulatedEmission(
+                daysToEmit,
+                totalMintAmount,
+                totalSupply(),
+                block.timestamp
+            );
         }
         
         lastEmissionTime = block.timestamp;
+        return (totalMintAmount, daysToEmit);
+    }
+
+    /**
+     * @dev Get information about pending emissions
+     * @return pendingAmount Total amount pending to be emitted
+     * @return daysAccumulated Number of days accumulated
+     * @return nextDailyEmission Amount for next daily emission
+     */
+    function getPendingEmissions() public view returns (
+        uint256 pendingAmount,
+        uint256 daysAccumulated,
+        uint256 nextDailyEmission
+    ) {
+        uint256 timePassed = block.timestamp - lastEmissionTime;
+        if (timePassed < 1 days) {
+            return (0, 0, getNextEmissionAmount());
+        }
+
+        uint256 daysToEmit = timePassed / 1 days;
+        uint256 totalMintAmount = 0;
+
+        for(uint256 i = 0; i < daysToEmit; i++) {
+            uint256 mintAmount = getNextEmissionAmount();
+            if (mintAmount == 0) break;
+            
+            if (totalSupply() + totalMintAmount + mintAmount > TOTAL_SUPPLY) {
+                mintAmount = TOTAL_SUPPLY - totalSupply() - totalMintAmount;
+                totalMintAmount += mintAmount;
+                break;
+            }
+            
+            totalMintAmount += mintAmount;
+        }
+
+        return (totalMintAmount, daysToEmit, getNextEmissionAmount());
     }
 
     /**
@@ -142,20 +205,16 @@ contract BitDSMToken is
             return 0;
         }
 
-        uint256 daysPassed = timePassed / 1 days;
+        // Calculate which halving period we're in (0-4)
+        uint256 halvingPeriod = timePassed / HALVING_PERIOD;
         
-        // Calculate declining emission rate
-        // At day 0: 100% of INITIAL_DAILY_EMISSION
-        // At day 365: (100 - BASE_DECLINE_RATE)% of INITIAL_DAILY_EMISSION
-        uint256 emissionAmount = INITIAL_DAILY_EMISSION * 
-            (RATE_DENOMINATOR - ((daysPassed * BASE_DECLINE_RATE) / 365)) / 
-            RATE_DENOMINATOR;
-
-        // Cap at daily limit
-        if (emissionAmount > MAX_DAILY_MINT) {
-            return MAX_DAILY_MINT;
-        }
-
+        // Calculate emission with whole numbers
+        uint256 emissionAmount = INITIAL_DAILY_EMISSION >> halvingPeriod;
+        // First period (0-4 years): 7,200 tokens per day
+        // Second period (4-8 years): 3,600 tokens per day
+        // Third period (8-12 years): 1,800 tokens per day
+        // Fourth period (12-16 years): 900 tokens per day
+        // Fifth period (16-20 years): 450 tokens per day
         return emissionAmount;
     }
 
@@ -173,28 +232,6 @@ contract BitDSMToken is
         remainingTime = timePassed >= EMISSION_PERIOD ? 0 : EMISSION_PERIOD - timePassed;
         nextEmission = getNextEmissionAmount();
         isPaused = emissionsPaused;
-    }
-
-    /**
-     * @dev Calculate compound growth for a specific number of days
-     * @param days_ Number of days to calculate growth for
-     */
-    function calculateGrowthForDays(uint256 days_) external view returns (uint256) {
-        require(days_ <= 365, "Cannot calculate beyond emission period");
-        
-        uint256 totalSupply = INITIAL_SUPPLY;
-        for (uint256 i = 0; i < days_; i++) {
-            uint256 emission = INITIAL_DAILY_EMISSION * 
-                (RATE_DENOMINATOR - ((i * BASE_DECLINE_RATE) / 365)) / 
-                RATE_DENOMINATOR;
-                
-            if (emission > MAX_DAILY_MINT) {
-                emission = MAX_DAILY_MINT;
-            }
-            
-            totalSupply += emission;
-        }
-        return totalSupply;
     }
 
     /**
@@ -682,5 +719,26 @@ contract BitDSMToken is
             guardian,
             operationType
         );
+    }
+
+    /**
+     * @dev Get detailed emission statistics
+     * @return currentSupply Current total supply
+     * @return pendingEmissions Amount of pending emissions
+     * @return daysAccumulated Number of days accumulated
+     * @return nextEmission Next daily emission amount
+     * @return remainingTime Time until emission period ends
+     */
+    function getDetailedEmissionStats() external view returns (
+        uint256 currentSupply,
+        uint256 pendingEmissions,
+        uint256 daysAccumulated,
+        uint256 nextEmission,
+        uint256 remainingTime
+    ) {
+        currentSupply = totalSupply();
+        (pendingEmissions, daysAccumulated, nextEmission) = getPendingEmissions();
+        uint256 timePassed = block.timestamp - startTime;
+        remainingTime = timePassed >= EMISSION_PERIOD ? 0 : EMISSION_PERIOD - timePassed;
     }
 }

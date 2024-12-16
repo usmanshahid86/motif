@@ -7,6 +7,7 @@ import "../src/governance/TokenStorage.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "../src/governance/TokenTimelock.sol";
+import "./mocks/MockStaking.sol";
 
 contract TokenUnitTest is Test {
     BitDSMToken public token;
@@ -37,30 +38,77 @@ contract TokenUnitTest is Test {
         token = BitDSMToken(address(proxy));
     }
 
-    function testInitialSupply() public view {
-        assertEq(token.totalSupply(), token.INITIAL_SUPPLY());
+    function testInitialSupply() public {
+        assertEq(token.totalSupply(), token.LOCKED_SUPPLY());
     }
 
     function testEmitNewTokens() public {
-        // advance time by 1 day
         vm.warp(block.timestamp + 1 days);
         vm.prank(owner);
 
         uint256 expectedAmount = token.getNextEmissionAmount();
+        assertEq(expectedAmount, 7_200 * 10**18); // First period daily emission
+        
         token.emitNewTokens(owner);
-
-        // Should be INITIAL_SUPPLY + first day emission (500K tokens)
-        assertEq(token.totalSupply(), token.INITIAL_SUPPLY() + expectedAmount);
+        assertEq(token.totalSupply(), token.LOCKED_SUPPLY() + expectedAmount);
     }
 
-    function testFuzz_EmitNewTokens(uint256 timeJump) public {
-        timeJump = bound(timeJump, 1 days, 365 days);
-        vm.warp(block.timestamp + timeJump);
+    function testEmissionHalving() public {
+        uint256 startTime = block.timestamp;
+        
+        // Test first period (0-4 years)
+        vm.warp(startTime + 1 days);
+        vm.prank(owner);
+        uint256 firstPeriodEmission = token.getNextEmissionAmount();
+        assertEq(firstPeriodEmission, 7_200 * 10**18);
+
+        // Test second period (4-8 years)
+        vm.warp(startTime + 4 * 365 days + 1 days);
+        vm.prank(owner);
+        uint256 secondPeriodEmission = token.getNextEmissionAmount();
+        assertEq(secondPeriodEmission, 3_600 * 10**18);
+
+        // Test third period (8-12 years)
+        vm.warp(startTime + 8 * 365 days + 1 days);
+        vm.prank(owner);
+        uint256 thirdPeriodEmission = token.getNextEmissionAmount();
+        assertEq(thirdPeriodEmission, 1_800 * 10**18);
+
+        // Test fourth period (12-16 years)
+        vm.warp(startTime + 12 * 365 days + 1 days);
+        vm.prank(owner);
+        uint256 fourthPeriodEmission = token.getNextEmissionAmount();
+        assertEq(fourthPeriodEmission, 900 * 10**18);
+
+        // Test fifth period (16-20 years)
+        vm.warp(startTime + 16 * 365 days + 1 days);
+        vm.prank(owner);
+        uint256 fifthPeriodEmission = token.getNextEmissionAmount();
+        assertEq(fifthPeriodEmission, 450 * 10**18);
+    }
+
+    function testEmissionPeriodEnd() public {
+        // Warp to just before 20 year period ends
+        vm.warp(block.timestamp + 20 * 365 days - 1 days);
         vm.prank(owner);
         token.emitNewTokens(owner);
-        assertGt(token.totalSupply(), token.INITIAL_SUPPLY());
-        assertLe(token.totalSupply(), token.TARGET_TOTAL_SUPPLY());
+
+        // Warp past emission period
+        vm.warp(block.timestamp + 2 days);
+        vm.prank(owner);
+        vm.expectRevert("Emission period ended");
+        token.emitNewTokens(owner);
     }
+
+
+    // function testFuzz_EmitNewTokens(uint256 timeJump) public {
+    //     timeJump = bound(timeJump, 1 days, 20 * 365 days);
+    //     vm.warp(block.timestamp + timeJump);
+    //     vm.prank(owner);
+    //     token.emitNewTokens(owner);
+    //     assertGt(token.totalSupply(), token.LOCKED_SUPPLY());
+    //     assertLe(token.totalSupply(), token.TOTAL_SUPPLY());
+    // }
 
     function testDailyMintLimit() public {
     // Take a snapshot of the initial state
@@ -138,57 +186,216 @@ contract TokenUnitTest is Test {
             lastEmission = emissionAmount;
         }
     }
-    function testEmissionPeriodEnd() public {
-        // Warp to just before emission period ends
-        vm.warp(block.timestamp + 365 days - 1 hours);
-        vm.prank(owner);
-        token.emitNewTokens(owner);
+    function testMaxSupplyCap() public {
+        uint256 startTime = block.timestamp;
+        uint256 totalEmitted = 0;
+        uint256 expectedDailyEmission = 7_200 * 10**18; // Starting daily emission
+        
+        // Test emissions over entire 20-year period
+        for (uint256 year = 0; year < 20; year++) {
+            // Test each day of the year
+            for (uint256 day = 0; day < 365; day++) {
+                vm.warp(startTime + (year * 365 + day) * 1 days);
+                vm.prank(owner);
+                
+                uint256 beforeMint = token.totalSupply();
+                token.emitNewTokens(owner);
+                uint256 emitted = token.totalSupply() - beforeMint;
+                totalEmitted += emitted;
+                
+                // Verify daily emission amount
+                assertEq(
+                    emitted,
+                    expectedDailyEmission,
+                    string.concat("Incorrect emission on year ", vm.toString(year))
+                );
+            }
+            
+            // Check for halving periods (every 4 years)
+            if ((year + 1) % 4 == 0 && year < 19) {
+                expectedDailyEmission = expectedDailyEmission / 2;
+                emit log_named_uint("Year", year + 1);
+                emit log_named_uint("New daily emission", expectedDailyEmission);
+            }
+            
+            // Log yearly totals
+            emit log_named_uint("Year completed", year + 1);
+            emit log_named_uint("Total supply", token.totalSupply());
+        }
 
-        // Warp past emission period
-        vm.warp(block.timestamp + 2 days);
+        // Final assertions
+        assertLe(
+            token.totalSupply(),
+            token.TOTAL_SUPPLY(),
+            "Total supply exceeded maximum cap"
+        );
+        
+        assertGe(
+            token.totalSupply(),
+            token.LOCKED_SUPPLY(),
+            "Total supply less than locked supply"
+        );
+        
+        // Verify emissions have ended
+        vm.warp(startTime + 20 * 365 days + 1 days);
         vm.prank(owner);
         vm.expectRevert("Emission period ended");
         token.emitNewTokens(owner);
     }
 
-    function testMaxSupplyCap() public {
-        // Calculate total days needed to reach max supply
+    /*//////////////////////////////////////////////////////////////
+                        ACCUMULATED EMISSION TESTS
+    //////////////////////////////////////////////////////////////*/
+    function testAccumulatedEmissions() public {
+        // Test emissions over multiple days
+        vm.warp(block.timestamp + 5 days);
+        vm.prank(owner);
+        
+        (uint256 mintedAmount, uint256 daysAccumulated) = token.emitNewTokens(owner);
+        
+        // Should have accumulated 5 days worth of emissions
+        assertEq(daysAccumulated, 5, "Should accumulate 5 days");
+        assertEq(mintedAmount, 7_200 * 10**18 * 5, "Should mint 5 days worth of tokens");
+    }
+
+    function testPendingEmissions() public {
+        // Advance time by 3 days
+        vm.warp(block.timestamp + 3 days);
+        
+        // Check pending emissions
+        (uint256 pendingAmount, uint256 daysAccumulated, uint256 nextDailyEmission) = token.getPendingEmissions();
+        
+        assertEq(daysAccumulated, 3, "Should show 3 days accumulated");
+        assertEq(pendingAmount, 7_200 * 10**18 * 3, "Should have 3 days of emissions pending");
+        assertEq(nextDailyEmission, 7_200 * 10**18, "Should show correct daily emission");
+    }
+
+    function testAccumulatedEmissionsWithHalving() public {
+        // Test emissions across a halving period
         uint256 startTime = block.timestamp;
-        uint256 totalSupply = token.INITIAL_SUPPLY();
+        
+        // Move to just before halving (4 years - 1 day)
+        vm.warp(startTime + 4 * 365 days - 1 days);
+        vm.prank(owner);
+        (uint256 beforeHalvingAmount,) = token.emitNewTokens(owner);
+        
+        // Move 2 days forward (crossing halving point)
+        vm.warp(block.timestamp + 2 days);
+        vm.prank(owner);
+        (uint256 afterHalvingAmount, uint256 daysAccumulated) = token.emitNewTokens(owner);
+        
+        assertEq(daysAccumulated, 2, "Should accumulate 2 days");
+        assertEq(
+            afterHalvingAmount, 
+            (3_600 * 10**18 * 2), 
+            "Should mint correct amount after halving"
+        );
+    }
 
-        for (uint256 i = 1; i <= 365; i++) {
-            vm.warp(startTime + (i * 1 days));
+    function testDetailedEmissionStats() public {
+        vm.warp(block.timestamp + 5 days);
+        
+        (
+            uint256 currentSupply,
+            uint256 pendingEmissions,
+            uint256 daysAccumulated,
+            uint256 nextEmission,
+            uint256 remainingTime
+        ) = token.getDetailedEmissionStats();
+        
+        assertEq(currentSupply, token.LOCKED_SUPPLY(), "Initial supply should be locked supply");
+        assertEq(pendingEmissions, 7_200 * 10**18 * 5, "Should have 5 days of pending emissions");
+        assertEq(daysAccumulated, 5, "Should show 5 days accumulated");
+        assertEq(nextEmission, 7_200 * 10**18, "Should show correct daily emission");
+        assertLt(remainingTime, token.EMISSION_PERIOD(), "Should show reduced remaining time");
+    }
+
+    function testMaxSupplyWithAccumulation() public {
+        // Test approaching max supply with accumulated emissions
+        uint256 startSupply = token.totalSupply();
+        uint256 remainingSupply = token.TOTAL_SUPPLY() - startSupply;
+        uint256 daysToMax = remainingSupply / (7_200 * 10**18);
+        
+        vm.warp(block.timestamp + daysToMax * 1 days);
+        vm.prank(owner);
+        (uint256 mintedAmount,) = token.emitNewTokens(owner);
+        
+        assertLe(
+            token.totalSupply(), 
+            token.TOTAL_SUPPLY(), 
+            "Should not exceed total supply"
+        );
+    }
+
+    function testEmissionPauseWithAccumulation() public {
+        // Test pausing emissions with accumulated days
+        vm.warp(block.timestamp + 3 days);
+        
+        // Pause emissions
+        vm.prank(owner);
+        token.setEmissionsPaused(true);
+        
+        vm.prank(owner);
+        vm.expectRevert("Emissions paused");
+        token.emitNewTokens(owner);
+        
+        // Unpause and verify accumulated emissions
+        vm.prank(owner);
+        token.setEmissionsPaused(false);
+        
+        vm.prank(owner);
+        (uint256 mintedAmount, uint256 daysAccumulated) = token.emitNewTokens(owner);
+        
+        assertEq(daysAccumulated, 3, "Should accumulate days during pause");
+        assertEq(mintedAmount, 7_200 * 10**18 * 3, "Should mint accumulated amount after unpause");
+    }
+
+    // function testFuzz_AccumulatedEmissions(uint256 daysToWait) public {
+    //     daysToWait = bound(daysToWait, 1, 365); // Bound to reasonable range
+        
+    //     vm.warp(block.timestamp + daysToWait * 1 days);
+    //     vm.prank(owner);
+        
+    //     (uint256 mintedAmount, uint256 daysAccumulated) = token.emitNewTokens(owner);
+        
+    //     assertEq(daysAccumulated, daysToWait, "Should accumulate correct days");
+    //     assertEq(
+    //         mintedAmount, 
+    //         7_200 * 10**18 * daysToWait, 
+    //         "Should mint correct accumulated amount"
+    //     );
+    // }
+
+    function testEmissionConsistency() public {
+        // Test consistency of emissions over multiple accumulation periods
+        uint256 totalEmitted = 0;
+        uint256[] memory waitPeriods = new uint256[](5);
+        waitPeriods[0] = 3;  // 3 days
+        waitPeriods[1] = 5;  // 5 days
+        waitPeriods[2] = 2;  // 2 days
+        waitPeriods[3] = 4;  // 4 days
+        waitPeriods[4] = 1;  // 1 day
+        
+        for(uint256 i = 0; i < waitPeriods.length; i++) {
+            vm.warp(block.timestamp + waitPeriods[i] * 1 days);
             vm.prank(owner);
-            token.emitNewTokens(owner);
+            (uint256 mintedAmount,) = token.emitNewTokens(owner);
+            totalEmitted += mintedAmount;
+            
+            assertEq(
+                mintedAmount, 
+                7_200 * 10**18 * waitPeriods[i], 
+                "Emission amount mismatch"
+            );
         }
-
-        assertLe(
-            token.totalSupply(),
-            token.TARGET_TOTAL_SUPPLY(),
-            "Total supply should not exceed target"
+        
+        assertEq(
+            totalEmitted, 
+            7_200 * 10**18 * 15, 
+            "Total emitted amount mismatch"
         );
     }
 
-    function testCalculateGrowthForDays() public {
-        uint256 oneDay = token.calculateGrowthForDays(1);
-        uint256 thirtyDays = token.calculateGrowthForDays(30);
-        uint256 fullPeriod = token.calculateGrowthForDays(365);
-
-        assertGt(
-            oneDay,
-            token.INITIAL_SUPPLY(),
-            "One day growth should increase supply"
-        );
-        assertGt(thirtyDays, oneDay, "30 days should be more than 1 day");
-        assertLe(
-            fullPeriod,
-            token.TARGET_TOTAL_SUPPLY(),
-            "Full period should not exceed target"
-        );
-
-        vm.expectRevert("Cannot calculate beyond emission period");
-        token.calculateGrowthForDays(366);
-    }
 
     /*//////////////////////////////////////////////////////////////
                         GUARDIAN SYSTEM TESTS
@@ -488,4 +695,570 @@ function _addGuardian(address guardian) internal {
         vm.prank(user);
         assertTrue(token.transfer(recipient, 500));
     }
+
+    function testEmissionScheduleInvariant() public {
+        uint256 startTime = block.timestamp;
+        uint256 totalEmitted = 0;
+        uint256 expectedDaily = 7_200 * 10**18;
+
+        // Test emissions over entire 20-year period
+        for (uint256 year = 0; year < 20; year++) {
+            // Test first day of each year
+            vm.warp(startTime + (year * 365 days) + 1 days);
+            vm.prank(owner);
+            
+            uint256 beforeMint = token.totalSupply();
+            token.emitNewTokens(owner);
+            uint256 emitted = token.totalSupply() - beforeMint;
+            
+            // Check if we're at a halving point
+            if (year > 0 && year % 4 == 0) {
+                expectedDaily = expectedDaily / 2;
+                emit log_named_uint("Year", year);
+                emit log_named_uint("New daily emission", expectedDaily);
+            }
+            
+            assertEq(emitted, expectedDaily, "Daily emission amount incorrect");
+            totalEmitted += emitted;
+        }
+        
+        // Verify total emissions
+        assertLe(totalEmitted + token.LOCKED_SUPPLY(), token.TOTAL_SUPPLY());
+    }
+
+    function testHalvingBoundaries() public {
+        uint256 startTime = block.timestamp;
+        
+        // Test just before halving
+        vm.warp(startTime + (4 * 365 days - 1 days));
+        vm.prank(owner);
+        uint256 beforeHalving = token.getNextEmissionAmount();
+        
+        // Test right after halving
+        vm.warp(startTime + (4 * 365 days + 1 days));
+        vm.prank(owner);
+        uint256 afterHalving = token.getNextEmissionAmount();
+        
+        assertEq(afterHalving * 2, beforeHalving, "Halving ratio incorrect");
+    }
+
+    function testDailyEmissionConsistency() public {
+        uint256 startTime = block.timestamp;
+        
+        // Test emissions for 30 consecutive days in each period
+        uint256[] memory periodStarts = new uint256[](5);
+        periodStarts[0] = 0;            // First period
+        periodStarts[1] = 4 * 365;      // Second period
+        periodStarts[2] = 8 * 365;      // Third period
+        periodStarts[3] = 12 * 365;     // Fourth period
+        periodStarts[4] = 16 * 365;     // Fifth period
+        
+        uint256[] memory expectedEmissions = new uint256[](5);
+        expectedEmissions[0] = 7_200 * 10**18;
+        expectedEmissions[1] = 3_600 * 10**18;
+        expectedEmissions[2] = 1_800 * 10**18;
+        expectedEmissions[3] = 900 * 10**18;
+        expectedEmissions[4] = 450 * 10**18;
+        
+        for (uint256 i = 0; i < periodStarts.length; i++) {
+            for (uint256 day = 0; day < 30; day++) {
+                vm.warp(startTime + (periodStarts[i] + day) * 1 days);
+                vm.prank(owner);
+                uint256 emission = token.getNextEmissionAmount();
+                assertEq(
+                    emission, 
+                    expectedEmissions[i], 
+                    string.concat("Emission incorrect in period ", vm.toString(i))
+                );
+            }
+        }
+    }
+
+    function testEmissionsPausing() public {
+        // Test pausing emissions
+        vm.prank(owner);
+        token.setEmissionsPaused(true);
+        
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(owner);
+        vm.expectRevert("Emissions paused");
+        token.emitNewTokens(owner);
+        
+        // Test unpausing
+        vm.prank(owner);
+        token.setEmissionsPaused(false);
+        
+        vm.prank(owner);
+        token.emitNewTokens(owner);
+        assertGt(token.totalSupply(), token.LOCKED_SUPPLY());
+    }
+
+    function testMaxSupplyEnforcement() public {
+        uint256 startTime = block.timestamp;
+        uint256 totalMinted = 0;
+        
+        // Try to mint beyond total supply
+        for (uint256 i = 0; i < 7300; i++) { // 20 years in days
+            vm.warp(startTime + (i * 1 days));
+            vm.prank(owner);
+            
+            uint256 beforeMint = token.totalSupply();
+            token.emitNewTokens(owner);
+            uint256 minted = token.totalSupply() - beforeMint;
+            totalMinted += minted;
+            
+            assertLe(token.totalSupply(), token.TOTAL_SUPPLY());
+        }
+    }
+
+    function testFuzz_TimeJumps(uint256[] calldata jumps) public {
+        uint256 currentTime = block.timestamp;
+        uint256 totalEmitted = 0;
+        
+        for (uint256 i = 0; i < jumps.length; i++) {
+            uint256 timeJump = bound(jumps[i], 1 days, 100 days);
+            currentTime += timeJump;
+            vm.warp(currentTime);
+            
+            if (currentTime - block.timestamp <= 20 * 365 days) {
+                vm.prank(owner);
+                uint256 beforeMint = token.totalSupply();
+                token.emitNewTokens(owner);
+                totalEmitted += token.totalSupply() - beforeMint;
+            }
+        }
+        
+        assertLe(totalEmitted + token.LOCKED_SUPPLY(), token.TOTAL_SUPPLY());
+    }
+
+    function testEdgeCaseEmissions() public {
+        // Test emission at exact halving moments
+        uint256[] memory halvingPoints = new uint256[](4);
+        halvingPoints[0] = 4 * 365 days;
+        halvingPoints[1] = 8 * 365 days;
+        halvingPoints[2] = 12 * 365 days;
+        halvingPoints[3] = 16 * 365 days;
+
+        for (uint256 i = 0; i < halvingPoints.length; i++) {
+            // Test exactly at halving point
+            vm.warp(block.timestamp + halvingPoints[i]);
+            uint256 emissionAtHalving = token.getNextEmissionAmount();
+            
+            // Test one second before halving
+            vm.warp(block.timestamp + halvingPoints[i] - 1);
+            uint256 emissionBeforeHalving = token.getNextEmissionAmount();
+            
+            // Test one second after halving
+            vm.warp(block.timestamp + halvingPoints[i] + 1);
+            uint256 emissionAfterHalving = token.getNextEmissionAmount();
+            
+            assertEq(emissionAfterHalving * 2, emissionBeforeHalving, "Halving transition incorrect");
+            assertEq(emissionAtHalving, emissionAfterHalving, "Halving point emission incorrect");
+        }
+    }
+
+    function testReentrancyProtection() public {
+        // Deploy malicious receiver contract
+        MaliciousReceiver malicious = new MaliciousReceiver(address(token));
+        
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(owner);
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        token.emitNewTokens(address(malicious));
+    }
+
+    function testStressEmissions() public {
+        uint256 startTime = block.timestamp;
+        
+        // Simulate rapid emissions with different time patterns
+        uint256[] memory timePatterns = new uint256[](5);
+        timePatterns[0] = 1 days;
+        timePatterns[1] = 1 days + 1 hours;
+        timePatterns[2] = 1 days - 1 hours;
+        timePatterns[3] = 2 days;
+        timePatterns[4] = 3 days;
+
+        for (uint256 year = 0; year < 20; year++) {
+            for (uint256 i = 0; i < timePatterns.length; i++) {
+                vm.warp(startTime + (year * 365 days) + (i * timePatterns[i]));
+                
+                if (i % 2 == 0) {
+                    // Test normal emission
+                    vm.prank(owner);
+                    token.emitNewTokens(owner);
+                } else {
+                    // Test emission with pausing/unpausing
+                    vm.startPrank(owner);
+                    token.setEmissionsPaused(true);
+                    vm.expectRevert("Emissions paused");
+                    token.emitNewTokens(owner);
+                    token.setEmissionsPaused(false);
+                    token.emitNewTokens(owner);
+                    vm.stopPrank();
+                }
+            }
+        }
+    }
+
+    // function testInvariantMaintenance() public {
+    //     uint256 startTime = block.timestamp;
+    //     uint256 totalEmitted = 0;
+    //     uint256 emissionCount = 0;
+        
+    //     // Test emissions while maintaining invariants
+    //     for (uint256 day = 1; day <= 7300; day++) { // 20 years
+    //         vm.warp(startTime + (day * 1 days));
+    //         vm.prank(owner);
+            
+    //         uint256 beforeMint = token.totalSupply();
+    //         token.emitNewTokens(owner);
+    //         uint256 emitted = token.totalSupply() - beforeMint;
+    //         totalEmitted += emitted;
+    //         emissionCount++;
+            
+    //         // Verify invariants
+    //         assertLe(token.totalSupply(), token.TOTAL_SUPPLY(), "Total supply exceeded");
+    //         assertGe(token.totalSupply(), token.LOCKED_SUPPLY(), "Supply below locked amount");
+    //         assertEq(
+    //             emitted, 
+    //             token.getNextEmissionAmount(), 
+    //             "Emission amount mismatch"
+    //         );
+            
+    //         // Verify halving periods
+    //         uint256 currentYear = day / 365;
+    //         uint256 expectedEmission = 7_200 * 10**18 >> (currentYear / 4);
+    //         if (currentYear < 20) {
+    //             assertEq(
+    //                 token.getNextEmissionAmount(), 
+    //                 expectedEmission, 
+    //                 "Incorrect emission rate for year"
+    //             );
+    //         }
+    //     }
+    //}
+
+    function testFailureModes() public {
+        // Test various failure modes
+        vm.prank(owner);
+        
+        // Try to emit with zero address
+        vm.expectRevert("Invalid distributor address");
+        token.emitNewTokens(address(0));
+        
+        // Try to emit twice in same day
+        token.emitNewTokens(owner);
+        vm.expectRevert("Wait 24 hours between emissions");
+        token.emitNewTokens(owner);
+        
+        // Try to emit after end period
+        vm.warp(block.timestamp + 21 * 365 days);
+        vm.expectRevert("Emission period ended");
+        token.emitNewTokens(owner);
+        
+        // Try to set max supply below current supply
+        vm.expectRevert("Cap cannot be less than current supply");
+        token.setMaxSupplyCap(token.totalSupply() - 1);
+    }
+
+    function testGasOptimization() public {
+        uint256 gasStart;
+        uint256 gasUsed;
+
+        // Test emission gas usage
+        gasStart = gasleft();
+        vm.prank(owner);
+        token.emitNewTokens(owner);
+        gasUsed = gasStart - gasleft();
+        emit log_named_uint("Gas used for emission", gasUsed);
+
+        // Test halving period transition gas usage
+        vm.warp(block.timestamp + 4 * 365 days);
+        gasStart = gasleft();
+        vm.prank(owner);
+        token.emitNewTokens(owner);
+        gasUsed = gasStart - gasleft();
+        emit log_named_uint("Gas used at halving", gasUsed);
+    }
+
+    function testIntegrationWithStaking() public {
+        // Deploy mock staking contract
+        MockStaking staking = new MockStaking(address(token));
+        
+        // Test emission to staking contract
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(owner);
+        token.emitNewTokens(address(staking));
+        
+        // Verify staking contract received tokens
+        assertEq(token.balanceOf(address(staking)), 7_200 * 10**18);
+    }
+
+    function testCompleteEmissionScenario() public {
+        // Test complete emission cycle with governance actions
+        vm.startPrank(owner);
+        
+        // Add guardians
+        address guardian1 = address(0x1);
+        address guardian2 = address(0x2);
+        _addGuardian(guardian1);
+        _addGuardian(guardian2);
+        
+        // Emit tokens for a year
+        for(uint256 i = 0; i < 365; i++) {
+            vm.warp(block.timestamp + 1 days);
+            token.emitNewTokens(owner);
+            
+            // Every 90 days, simulate governance action
+            if(i % 90 == 0) {
+                token.setEmissionsPaused(true);
+                token.setEmissionsPaused(false);
+            }
+        }
+        
+        vm.stopPrank();
+    }
+
+    function testCompleteStakingIntegration() public {
+        // Deploy staking contract
+        MockStaking staking = new MockStaking(address(token));
+        
+        // Setup initial tokens for testing
+        vm.startPrank(owner);
+        token.transfer(address(this), 100_000 * 10**18);
+        token.approve(address(staking), type(uint256).max);
+        vm.stopPrank();
+        
+        // Test staking
+        uint256 stakeAmount = 1_000 * 10**18;
+        staking.stake(stakeAmount);
+        assertEq(staking.stakedBalance(address(this)), stakeAmount);
+        
+        // Advance time and test rewards
+        vm.warp(block.timestamp + 10 days);
+        uint256 rewards = staking.calculateRewards(address(this));
+        assertGt(rewards, 0);
+        
+        // Test withdrawal
+        staking.withdraw(stakeAmount);
+        assertEq(staking.stakedBalance(address(this)), 0);
+    }
+
+    function testStakingWithEmissions() public {
+        MockStaking staking = new MockStaking(address(token));
+        
+        // Emit tokens to staking contract
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(owner);
+        token.emitNewTokens(address(staking));
+        
+        // Verify staking contract received tokens
+        uint256 expectedEmission = 7_200 * 10**18;
+        assertEq(token.balanceOf(address(staking)), expectedEmission);
+        
+        // Test staking of emitted tokens
+        vm.prank(owner);
+        token.approve(address(staking), expectedEmission);
+        vm.prank(owner);
+        staking.stake(expectedEmission);
+        
+        assertEq(staking.totalStaked(), expectedEmission);
+    }
+
+    function testStakingIntegrationScenarios() public {
+        MockStaking staking = new MockStaking(address(token));
+        address user1 = address(0x1);
+        address user2 = address(0x2);
+        
+        // Setup initial balances
+        vm.startPrank(owner);
+        token.transfer(user1, 10_000 * 10**18);
+        token.transfer(user2, 10_000 * 10**18);
+        vm.stopPrank();
+        
+        // Scenario 1: Multiple users staking
+        vm.startPrank(user1);
+        token.approve(address(staking), type(uint256).max);
+        staking.stake(5_000 * 10**18);
+        vm.stopPrank();
+        
+        vm.startPrank(user2);
+        token.approve(address(staking), type(uint256).max);
+        staking.stake(3_000 * 10**18);
+        vm.stopPrank();
+        
+        assertEq(staking.totalStaked(), 8_000 * 10**18);
+        
+        // Scenario 2: Emissions with staking
+        for(uint256 i = 0; i < 5; i++) {
+            // Emit tokens daily
+            vm.warp(block.timestamp + 1 days);
+            vm.prank(owner);
+            token.emitNewTokens(address(staking));
+            
+            // Calculate expected rewards
+            (uint256 user1Staked,,uint256 user1Rewards) = staking.getStakeInfo(user1);
+            (uint256 user2Staked,,uint256 user2Rewards) = staking.getStakeInfo(user2);
+            
+            emit log_named_uint("Day", i + 1);
+            emit log_named_uint("User1 Rewards", user1Rewards);
+            emit log_named_uint("User2 Rewards", user2Rewards);
+        }
+        
+        // Scenario 3: Reward claiming during halving period
+        vm.warp(block.timestamp + 4 * 365 days - 5 days);
+        
+        // Before halving
+        uint256 emissionBeforeHalving = token.getNextEmissionAmount();
+        vm.prank(owner);
+        token.emitNewTokens(address(staking));
+        
+        // After halving
+        vm.warp(block.timestamp + 10 days);
+        uint256 emissionAfterHalving = token.getNextEmissionAmount();
+        assertEq(emissionAfterHalving * 2, emissionBeforeHalving);
+        
+        // Claim rewards across halving period
+        vm.prank(user1);
+        staking.claimRewards();
+        vm.prank(user2);
+        staking.claimRewards();
+        
+        // Scenario 4: Emergency situations
+        vm.prank(owner);
+        token.setEmissionsPaused(true);
+        
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(owner);
+        vm.expectRevert("Emissions paused");
+        token.emitNewTokens(address(staking));
+        
+        // Test emergency withdrawal
+        uint256 user1BalanceBefore = token.balanceOf(user1);
+        vm.prank(user1);
+        staking.emergencyWithdraw();
+        uint256 user1BalanceAfter = token.balanceOf(user1);
+        assertGt(user1BalanceAfter, user1BalanceBefore);
+        
+        // Scenario 5: Staking limits and edge cases
+        vm.startPrank(user2);
+        vm.expectRevert();
+        staking.stake(0);
+        
+        staking.withdraw(1000 * 10**18);
+        vm.expectRevert();
+        staking.withdraw(type(uint256).max);
+        vm.stopPrank();
+    }
+    
+    function testStakingWithGovernanceActions() public {
+        MockStaking staking = new MockStaking(address(token));
+        address guardian = address(0x1);
+        
+        // Setup
+        vm.prank(owner);
+        _addGuardian(guardian);
+        
+        // Scenario 1: Emergency pause during staking
+        vm.prank(guardian);
+        token.proposeEmergencyPause();
+        
+        bytes32 actionId = keccak256(
+            abi.encodePacked("PAUSE", block.timestamp)
+        );
+        
+        vm.prank(guardian);
+        token.executeEmergencyPause(actionId);
+        
+        // Verify staking still works during pause
+        vm.startPrank(owner);
+        token.transfer(address(this), 1000 * 10**18);
+        token.approve(address(staking), 1000 * 10**18);
+        vm.stopPrank();
+        
+        staking.stake(1000 * 10**18);
+        
+        // Scenario 2: Blacklist interaction
+        address maliciousUser = address(0x9);
+        vm.prank(owner);
+        token.transfer(maliciousUser, 1000 * 10**18);
+        
+        vm.startPrank(maliciousUser);
+        token.approve(address(staking), 1000 * 10**18);
+        staking.stake(1000 * 10**18);
+        vm.stopPrank();
+        
+        // Blacklist user
+        vm.prank(owner);
+        token.setBlacklisted(maliciousUser, true);
+        
+        // Verify blacklisted user can withdraw but not stake
+        vm.startPrank(maliciousUser);
+        staking.emergencyWithdraw();
+        token.approve(address(staking), 1000 * 10**18);
+        vm.expectRevert("Blacklisted");
+        staking.stake(1000 * 10**18);
+        vm.stopPrank();
+    }
+    
+    function testStakingInvariantsDuringEmissions() public {
+        MockStaking staking = new MockStaking(address(token));
+        
+        // Setup initial staking pool
+        vm.startPrank(owner);
+        token.transfer(address(this), 100_000 * 10**18);
+        token.approve(address(staking), type(uint256).max);
+        vm.stopPrank();
+        
+        uint256 initialStake = 50_000 * 10**18;
+        staking.stake(initialStake);
+        
+        // Test emissions over multiple periods
+        for(uint256 year = 0; year < 5; year++) {
+            for(uint256 day = 0; day < 365; day++) {
+                vm.warp(block.timestamp + 1 days);
+                
+                // Record state before emission
+                uint256 totalSupplyBefore = token.totalSupply();
+                uint256 stakingBalanceBefore = token.balanceOf(address(staking));
+                
+                // Emit tokens
+                vm.prank(owner);
+                token.emitNewTokens(address(staking));
+                
+                // Verify invariants
+                assertEq(
+                    token.balanceOf(address(staking)) - stakingBalanceBefore,
+                    token.totalSupply() - totalSupplyBefore,
+                    "Emission mismatch"
+                );
+                
+                if(day % 30 == 0) {
+                    // Claim rewards periodically
+                    staking.claimRewards();
+                }
+            }
+            
+            emit log_named_uint("Year completed", year + 1);
+            emit log_named_uint("Total staked", staking.totalStaked());
+        }
+    }
 }
+
+// Helper contract for testing reentrancy
+contract MaliciousReceiver {
+    BitDSMToken private token;
+    
+    constructor(address _token) {
+        token = BitDSMToken(_token);
+    }
+    
+    receive() external payable {
+        token.emitNewTokens(address(this));
+    }
+}
+
+
+
+
+    

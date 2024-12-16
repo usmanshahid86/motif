@@ -47,6 +47,8 @@ interface ITokenInterface {
         uint256 scheduledTime
     );
     event ActionScheduled(bytes32 indexed actionId, uint256 executionTime);
+    event EmissionHalved(uint256 indexed halvingPeriod, uint256 newEmissionRate);
+    
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -81,4 +83,7 @@ interface ITokenInterface {
     error Blacklisted(address account);
     error UnauthorizedCaller();
     error InvalidAddress();
+    error EmissionPeriodExceeded();
+    error InvalidEmissionAmount();
+    error HalvingPeriodNotReached();
 } 
