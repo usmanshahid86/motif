@@ -53,7 +53,9 @@ contract TokenStorage is Initializable {
     uint256 public constant HALVING_PERIOD = 4 * 365 days;     // 4 years
     
     // Constants
-    uint256 public constant MAX_DAILY_MINT = INITIAL_DAILY_EMISSION;
+     // Maximum accumulation period for emissions (e.g., 30 days)
+    uint256 public constant MAX_ACCUMULATION_DAYS = 30;
+    uint256 public constant MAX_DAILY_MINT = INITIAL_DAILY_EMISSION * MAX_ACCUMULATION_DAYS;
     uint256 public constant TIMELOCK_MIN_DELAY = 2 days;
     uint256 public constant EMERGENCY_COOLDOWN = 1 days;
     uint256 public constant EMERGENCY_ACTION_TIMEOUT = 3 days;
