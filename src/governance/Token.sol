@@ -1,33 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+//import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "./TokenStorage.sol";
-import "../interfaces/ITokenEventsAndErrors.sol";
+import "../interfaces/IToken.sol";
 import "./TokenTimelock.sol";
 
 contract BitDSMToken is 
     TokenStorage,
+    IToken,
     ERC20Upgradeable,
     OwnableUpgradeable,
     PausableUpgradeable,
-    ReentrancyGuardUpgradeable,
-    ITokenInterface
+    ReentrancyGuardUpgradeable
 {
-    // Add new events for accumulated emissions
-    event AccumulatedEmission(
-        uint256 daysAccumulated,
-        uint256 totalAmount,
-        uint256 newTotalSupply,
-        uint256 timestamp
-    );
-
-    bool private initializing;
-
+    bool private _initializing;  // Declared here as implementation detail
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -36,7 +27,7 @@ contract BitDSMToken is
     function initialize(
         address initialOwner
     ) public initializer {
-        initializing = true;
+        _initializing = true;
         __ERC20_init("BitDSM Token", "BDSM");
         __Ownable_init();
         _transferOwnership(initialOwner);
@@ -47,7 +38,7 @@ contract BitDSMToken is
         lastEmissionTime = startTime;
         _mint(initialOwner, LOCKED_SUPPLY);
         maxSupplyCap = TOTAL_SUPPLY;
-        initializing = false;
+        _initializing = false;
 
         guardianList = new address[](0);
     }
@@ -75,7 +66,7 @@ contract BitDSMToken is
     }
 
     function _mint(address account, uint256 amount) internal virtual override {
-        if (!initializing) {
+        if (!_initializing) {
             uint256 day = block.timestamp / 1 days;
             require(dailyMinted[day] + amount <= MAX_DAILY_MINT, "Daily mint limit");
             dailyMinted[day] += amount;
@@ -684,17 +675,17 @@ contract BitDSMToken is
     }
 
     // Override transfer functions to check for pause status
-    function transfer(address to, uint256 amount) public override whenNotPaused notBlacklisted(msg.sender) 
+    function transfer(address to, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused notBlacklisted(msg.sender) 
     notBlacklisted(to) returns (bool) {
         return super.transfer(to, amount);
     }
 
-    function transferFrom(address from, address to, uint256 amount) public override whenNotPaused notBlacklisted(msg.sender) 
+    function transferFrom(address from, address to, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused notBlacklisted(msg.sender) 
     notBlacklisted(to) returns (bool) {
         return super.transferFrom(from, to, amount);
     }
     
-    function approve(address spender, uint256 amount) public override whenNotPaused 
+    function approve(address spender, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused 
     notBlacklisted(msg.sender) 
     notBlacklisted(spender) 
     returns (bool) {
@@ -740,5 +731,36 @@ contract BitDSMToken is
         (pendingEmissions, daysAccumulated, nextEmission) = getPendingEmissions();
         uint256 timePassed = block.timestamp - startTime;
         remainingTime = timePassed >= EMISSION_PERIOD ? 0 : EMISSION_PERIOD - timePassed;
+    }
+    /**
+     * @dev Returns the list of guardian addresses
+     * @return guardianList Array of guardian addresses
+     */
+    function getGuardianList() external view returns (address[] memory) {
+        return guardianList;
+    }
+    function getStartTime() external view returns (uint256) {
+        return startTime;
+    }
+    function getLastEmissionTime() external view returns (uint256) {
+        return lastEmissionTime;
+    }
+    function getEmissionRate() external view returns (uint256) {
+        return emissionRate;
+    }
+    function getMaxSupplyCap() external view returns (uint256) {
+        return maxSupplyCap;
+    }
+    function getEmissionsPaused() external view returns (bool) {
+        return emissionsPaused;
+    }
+    function getGuardians(address) external view returns (bool) {
+        return guardians[msg.sender];
+    }
+    function getBlacklisted(address) external view returns (bool) {
+        return blacklisted[msg.sender];
+    }
+    function getDailyMinted(uint256 day) external view returns (uint256) {
+        return dailyMinted[day];
     }
 }
