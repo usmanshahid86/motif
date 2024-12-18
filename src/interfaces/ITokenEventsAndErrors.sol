@@ -48,7 +48,12 @@ interface ITokenInterface {
     );
     event ActionScheduled(bytes32 indexed actionId, uint256 executionTime);
     event EmissionHalved(uint256 indexed halvingPeriod, uint256 newEmissionRate);
-    
+    event AccumulatedEmission(
+        uint256 daysAccumulated,
+        uint256 totalAmount,
+        uint256 newTotalSupply,
+        uint256 timestamp
+    );
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
