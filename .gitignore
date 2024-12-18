@@ -35,3 +35,6 @@ docs/book.css
 docs/solidity.min.js
 docs/book.toml
 docs/.gitignore
+
+# Individual README files
+src/rewards/README.md
