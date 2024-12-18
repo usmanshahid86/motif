@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.12;
 /**
  * @title IBitcoinPod
  * @notice Interface for individual Bitcoin pods that handle Bitcoin deposits and withdrawals
@@ -80,4 +80,10 @@ interface IBitcoinPod {
      * @param amount The amount of Bitcoin tokens to burn
      */
     function burn(address operator, uint256 amount) external;
+    /**
+     * @notice Returns the owner of the pod
+     * @dev This is the address of the owner who can perform sensitive actions
+     * @return address The owner's Ethereum address
+     */
+    function getOwner() external view returns (address);
 }

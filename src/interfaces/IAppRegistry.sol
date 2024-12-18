@@ -83,5 +83,6 @@ interface IAppRegistry {
         uint256 expiry
     ) external view returns (bytes32);
 
-   
+    function getRegisteredApps() external view returns (address[] memory);
+
 }

@@ -5,6 +5,11 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../interfaces/IToken.sol";
+import "../interfaces/IAppRegistry.sol";
+import "@eigenlayer/src/contracts/interfaces/IRewardsCoordinator.sol";
+import "../interfaces/IBitcoinPodManager.sol";
+import "@eigenlayer/src/contracts/interfaces/IStrategyManager.sol";
+import "../interfaces/IBitcoinPod.sol";
 
 contract RewardsDistributor is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     IToken public token;
@@ -30,6 +35,7 @@ contract RewardsDistributor is Initializable, OwnableUpgradeable, ReentrancyGuar
     
     // Tracking
     mapping(address => uint256) public lastStakeUpdate;
+    mapping(address => uint256) public lastStakeAmount;
     
     event EmissionsDistributed(
         uint256 totalAmount,
@@ -43,6 +49,9 @@ contract RewardsDistributor is Initializable, OwnableUpgradeable, ReentrancyGuar
         uint256 amount
     );
     
+    event AppRewardDistributed(address indexed app, uint256 amount);
+    event TVLRewardDistributed(address indexed pod, address indexed owner, uint256 amount);
+    
     function initialize(
         address _token,
         address _appRegistry,
@@ -52,7 +61,7 @@ contract RewardsDistributor is Initializable, OwnableUpgradeable, ReentrancyGuar
         __Ownable_init();
         __ReentrancyGuard_init();
         
-        token = IBitDSMToken(_token);
+        token = IToken(_token);
         appRegistry = IAppRegistry(_appRegistry);
         eigenLayerRewards = IRewardsCoordinator(_eigenLayerRewards);
         podManager = IBitcoinPodManager(_podManager);
@@ -102,19 +111,26 @@ contract RewardsDistributor is Initializable, OwnableUpgradeable, ReentrancyGuar
         
         uint256 perAppAmount = amount / apps.length;
         for(uint i = 0; i < apps.length; i++) {
-            token.transfer(apps[i], perAppAmount);
+            if (appRegistry.isAppRegistered(apps[i])) {
+                token.transfer(apps[i], perAppAmount);
+                emit AppRewardDistributed(apps[i], perAppAmount);
+            }
         }
     }
     
     function _distributeOperatorRewards(uint256 amount) internal {
         // Create EigenLayer rewards submission
-        RewardsSubmission[] memory submissions = new RewardsSubmission[](1);
-        submissions[0] = RewardsSubmission({
-            token: token,
+        IRewardsCoordinator.RewardsSubmission[] memory submissions = new IRewardsCoordinator.RewardsSubmission[](1);
+        
+        // Convert your StrategyAndMultiplier to IRewardsCoordinator.StrategyAndMultiplier
+        IRewardsCoordinator.StrategyAndMultiplier[] memory strategyAndMultipliers = _getEligibleStrategies();
+        
+        submissions[0] = IRewardsCoordinator.RewardsSubmission({
+            strategiesAndMultipliers: strategyAndMultipliers,
+            token: IERC20(address(token)),  // Cast your token to IERC20
             amount: amount,
             startTimestamp: uint32(block.timestamp - 1 days),
-            duration: 1 days,
-            strategiesAndMultipliers: _getEligibleStrategies()
+            duration: uint32(1 days)
         });
         
         token.approve(address(eigenLayerRewards), amount);
@@ -125,35 +141,37 @@ contract RewardsDistributor is Initializable, OwnableUpgradeable, ReentrancyGuar
         address[] memory pods = podManager.getActivePods();
         uint256 totalViableBtc = _getViableTotalBTC();
         
+        if (totalViableBtc == 0) return;
+
         for(uint i = 0; i < pods.length; i++) {
             address pod = pods[i];
             uint256 viablePodBtc = _getViablePodBTC(pod);
-            uint256 podShare = (amount * viablePodBtc) / totalViableBtc;
             
-            if (podShare > 0) {
-                token.transfer(pod, podShare);
-                emit TVLRewardDistributed(pod, podShare);
+            if (viablePodBtc > 0) {
+                uint256 podShare = (amount * viablePodBtc) / totalViableBtc;
+                if (podShare > 0) {
+                    // Transfer rewards to the pod owner
+                    address podOwner = IBitcoinPod(pod).getOwner();
+                    token.transfer(podOwner, podShare);
+                    emit TVLRewardDistributed(pod, podOwner, podShare);
+                }
             }
         }
     }
     
     function _getViableTotalBTC() internal view returns (uint256) {
-        uint256 total = podManager.getTotalLockedBTC();
-        // Subtract any BTC added since last emission
-        return total - _getNonViableBTC();
+        uint256 total = podManager.getTotalTVL();
+        // For TVL rewards, we'll count all BTC since it's already tracked in the pod manager
+        return total;
     }
     
     function _getViablePodBTC(address pod) internal view returns (uint256) {
-        uint256 podBtc = IBitcoinPod(pod).bitcoinBalance();
-        int256 stakeDelta = stakeDeltaSinceLastEmission[pod][address(this)];
-        // Only subtract positive stake changes
-        if (stakeDelta > 0) {
-            podBtc -= uint256(stakeDelta);
-        }
+        IBitcoinPod bitcoinPod = IBitcoinPod(pod);
+        uint256 podBtc = bitcoinPod.getBitcoinBalance();
         return podBtc;
     }
     
-    function _getEligibleStrategies() internal view returns (StrategyAndMultiplier[] memory) {
+    function _getEligibleStrategies() internal view returns (IRewardsCoordinator.StrategyAndMultiplier[] memory) {
         // Implementation for getting EigenLayer strategies
         // This would return the list of strategies eligible for rewards
     }
@@ -161,17 +179,17 @@ contract RewardsDistributor is Initializable, OwnableUpgradeable, ReentrancyGuar
     function updateStake(address staker, uint256 newAmount) external {
         // Track when stake changes
         stakeDeltaSinceLastEmission[staker][address(this)] = 
-            int256(newAmount) - int256(previousAmount);
+            int256(newAmount) - int256(lastStakeAmount[staker]);
+        lastStakeAmount[staker] = newAmount;
         lastStakeUpdate[staker] = block.number;
     }
     
     function _getViableStake(address staker) internal view returns (uint256) {
-        uint256 currentStake = getStake(staker);
+        uint256 currentStake = lastStakeAmount[staker];
         // Only count stake that's been there since last distribution
         if (lastStakeUpdate[staker] > lastEmissionBlock[address(this)]) {
             return currentStake - uint256(stakeDeltaSinceLastEmission[staker][address(this)]);
         }
         return currentStake;
     }
-} 
-} 
+}
