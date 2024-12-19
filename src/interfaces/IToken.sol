@@ -49,7 +49,6 @@ interface IToken is ITokenInterface {
     //////////////////////////////////////////////////////////////*/
     
     function setEmissionsPaused(bool pause) external;
-    function setBlacklisted(address user, bool status) external;
 
     /*//////////////////////////////////////////////////////////////
                             GUARDIAN FUNCTIONS
@@ -99,6 +98,5 @@ interface IToken is ITokenInterface {
     function getTotalSupply() external pure returns (uint256);
     function getEmissionsPaused() external view returns (bool);
     function getGuardians(address) external view returns (bool);
-    function getBlacklisted(address) external view returns (bool);
     function getGuardianList() external view returns (address[] memory);
 } 

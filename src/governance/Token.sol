@@ -50,21 +50,8 @@ contract BitDSMToken is
         if (emissionsPaused) revert EmissionsPausedError();
         _;
     }
-    // Add blacklist functionality 
-    modifier notBlacklisted(address account) {
-        require(!blacklisted[account], "Blacklisted");
-        _;
-    }
-
+ 
     /**
-     * @dev Set the blacklist status of an account
-     * @param user The address to update
-     * @param status The blacklist status to set (true for blacklisted, false for not blacklisted)
-     */
-    function setBlacklisted(address user, bool status) external onlyOwner {
-        blacklisted[user] = status;
-    }
-      /**
      * @dev Pause or unpause emissions
      * @param pause True to pause, false to unpause
      */
@@ -202,8 +189,7 @@ contract BitDSMToken is
      * @param amount The amount of tokens to transfer
      * @return bool True if the transfer is successful
      */
-    function transfer(address to, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused notBlacklisted(msg.sender) 
-    notBlacklisted(to) returns (bool) {
+    function transfer(address to, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused returns (bool) {
         return super.transfer(to, amount);
     }
     /**
@@ -213,8 +199,7 @@ contract BitDSMToken is
      * @param amount The amount of tokens to transfer
      * @return bool True if the transfer is successful
      */
-    function transferFrom(address from, address to, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused notBlacklisted(msg.sender) 
-    notBlacklisted(to) returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused returns (bool) {
         return super.transferFrom(from, to, amount);
     }
     /**
@@ -223,9 +208,7 @@ contract BitDSMToken is
      * @param amount The amount of tokens to approve
      * @return bool True if the approval is successful
      */
-    function approve(address spender, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused 
-    notBlacklisted(msg.sender) 
-    notBlacklisted(spender) 
+    function approve(address spender, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused
     returns (bool) {
         return super.approve(spender, amount);
     }
@@ -688,8 +671,5 @@ contract BitDSMToken is
     }
     function getGuardians(address) external view returns (bool) {
         return guardians[msg.sender];
-    }
-    function getBlacklisted(address) external view returns (bool) {
-        return blacklisted[msg.sender];
     }
 }

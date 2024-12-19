@@ -683,52 +683,6 @@ contract TokenUnitTest is Test {
     //     );
     // }
 
-    /*//////////////////////////////////////////////////////////////
-                        BLACKLIST TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testBlacklistFunctionality() public {
-        address user = address(2);
-
-        // Transfer some tokens to user
-        vm.prank(owner);
-        token.transfer(user, 1000);
-
-        // Blacklist user
-        vm.prank(owner);
-        token.setBlacklisted(user, true);
-
-        // Test transfer restrictions
-        vm.expectRevert("Blacklisted");
-        vm.prank(user);
-        token.transfer(address(3), 100);
-    }
-
-    function testBlacklistEdgeCases() public {
-        address user = address(2);
-        address recipient = address(3);
-
-        // Setup
-        vm.prank(owner);
-        token.transfer(user, 1000);
-
-        // Test blacklist during transfer
-        vm.prank(owner);
-        token.setBlacklisted(user, true);
-
-        vm.expectRevert("Blacklisted");
-        vm.prank(user);
-        token.approve(recipient, 500);
-
-        // Test blacklist removal
-        vm.prank(owner);
-        token.setBlacklisted(user, false);
-
-        vm.prank(user);
-        assertTrue(token.transfer(recipient, 500));
-    }
-
-
     function testHalvingBoundaries() public {
         uint256 startTime = block.timestamp;
 

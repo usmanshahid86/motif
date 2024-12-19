@@ -79,7 +79,6 @@ interface ITokenInterface {
     error InvalidOperation();
     
     /// @notice Access Control Errors
-    error Blacklisted(address account);
     error UnauthorizedCaller();
     error InvalidAddress();
     error EmissionPeriodExceeded();
