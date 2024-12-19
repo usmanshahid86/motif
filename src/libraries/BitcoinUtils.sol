@@ -191,7 +191,7 @@ library BitcoinUtils {
        // require(scriptPubKey[0] == 0x00, "Invalid witness version");
         
         // HRP for mainnet
-        bytes memory hrp = "tb";
+        bytes memory hrp = "bc1";
         
         bytes memory converted = _convertBits(scriptPubKey, 8, 5, true);
        
