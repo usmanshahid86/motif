@@ -8,7 +8,7 @@ interface IToken is ITokenInterface {
                             INITIALIZATION
     //////////////////////////////////////////////////////////////*/
     
-    function initialize(address initialOwner) external;
+    function initialize(address initialOwner, address initialSupplyDistributor) external;
 
     /*//////////////////////////////////////////////////////////////
                             TOKEN FUNCTIONS
@@ -49,7 +49,6 @@ interface IToken is ITokenInterface {
     //////////////////////////////////////////////////////////////*/
     
     function setEmissionsPaused(bool pause) external;
-    function setMaxSupplyCap(uint256 newCap) external;
     function setBlacklisted(address user, bool status) external;
 
     /*//////////////////////////////////////////////////////////////
@@ -77,7 +76,6 @@ interface IToken is ITokenInterface {
                             TIMELOCK FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     
-    function scheduleSetMaxSupplyCap(uint256 newCap) external;
     function scheduleSetEmissionsPaused(bool pause) external;
     function executeTimelockOperation(
         address target,
@@ -98,11 +96,9 @@ interface IToken is ITokenInterface {
     
     function getStartTime() external view returns (uint256);
     function getLastEmissionTime() external view returns (uint256);
-    function getEmissionRate() external view returns (uint256);
-    function getMaxSupplyCap() external view returns (uint256);
+    function getTotalSupply() external pure returns (uint256);
     function getEmissionsPaused() external view returns (bool);
     function getGuardians(address) external view returns (bool);
     function getBlacklisted(address) external view returns (bool);
-    function getDailyMinted(uint256) external view returns (uint256);
     function getGuardianList() external view returns (address[] memory);
 } 

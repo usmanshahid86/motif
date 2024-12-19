@@ -25,7 +25,8 @@ contract BitDSMToken is
     }
 
     function initialize(
-        address initialOwner
+        address initialOwner,
+        address initialSupplyDistributor
     ) public initializer {
         _initializing = true;
         __ERC20_init("BitDSM Token", "BDSM");
@@ -36,8 +37,7 @@ contract BitDSMToken is
 
         startTime = block.timestamp;
         lastEmissionTime = startTime;
-        _mint(initialOwner, LOCKED_SUPPLY);
-        maxSupplyCap = TOTAL_SUPPLY;
+        _mint(initialSupplyDistributor, INITIAL_SUPPLY);
         _initializing = false;
 
         guardianList = new address[](0);
@@ -64,17 +64,7 @@ contract BitDSMToken is
     function setBlacklisted(address user, bool status) external onlyOwner {
         blacklisted[user] = status;
     }
-
-    function _mint(address account, uint256 amount) internal virtual override {
-        if (!_initializing) {
-            uint256 day = block.timestamp / 1 days;
-            require(dailyMinted[day] + amount <= MAX_DAILY_MINT, "Daily mint limit");
-            dailyMinted[day] += amount;
-        }
-        super._mint(account, amount);
-    }
-
-    /**
+      /**
      * @dev Pause or unpause emissions
      * @param pause True to pause, false to unpause
      */
@@ -83,14 +73,19 @@ contract BitDSMToken is
         emit EmissionsPaused(pause);
     }
 
-    /**
-     * @dev Update the maximum supply cap
-     * @param newCap New maximum supply cap
+    function _mint(address account, uint256 amount) internal virtual override {
+        if (!_initializing) {
+            require(amount <= MAX_DAILY_MINT, "Mint amount exceeds limit");
+        }
+        super._mint(account, amount);
+    }
+
+        /**
+     * @dev Emergency function to burn tokens if supply gets too high
+     * @param amount Amount of tokens to burn from caller's balance
      */
-    function setMaxSupplyCap(uint256 newCap) external onlyOwner {
-        require(newCap >= totalSupply() && newCap <= TOTAL_SUPPLY, "Invalid cap");
-        maxSupplyCap = newCap;
-        emit MaxSupplyCapUpdated(newCap);
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
     }
 
     /**
@@ -179,16 +174,13 @@ contract BitDSMToken is
     }
 
     /**
-     * @dev Emergency function to burn tokens if supply gets too high
-     * @param amount Amount of tokens to burn from caller's balance
-     */
-    function burn(uint256 amount) external {
-        _burn(msg.sender, amount);
-    }
-
-    /**
      * @dev Calculate emission amount based on days passed
-     * Uses a linear decline rate from INITIAL_DAILY_EMISSION to a minimum over 365 days
+     * Uses a stepwise halving period of 4 years from INITIAL_DAILY_EMISSION to a minimum of 450 tokens per day
+     *  First period (0-4 years): 7,200 tokens per day
+     *  Second period (4-8 years): 3,600 tokens per day
+     *  Third period (8-12 years): 1,800 tokens per day
+     *  Fourth period (12-16 years): 900 tokens per day
+     *  Fifth period (16-20 years): 450 tokens per day
      */
     function getNextEmissionAmount() public view returns (uint256) {
         uint256 timePassed = block.timestamp - startTime;
@@ -201,14 +193,42 @@ contract BitDSMToken is
         
         // Calculate emission with whole numbers
         uint256 emissionAmount = INITIAL_DAILY_EMISSION >> halvingPeriod;
-        // First period (0-4 years): 7,200 tokens per day
-        // Second period (4-8 years): 3,600 tokens per day
-        // Third period (8-12 years): 1,800 tokens per day
-        // Fourth period (12-16 years): 900 tokens per day
-        // Fifth period (16-20 years): 450 tokens per day
         return emissionAmount;
     }
-
+  
+    /**
+     * @dev Override transfer function to check for pause status and blacklist
+     * @param to The address to transfer to
+     * @param amount The amount of tokens to transfer
+     * @return bool True if the transfer is successful
+     */
+    function transfer(address to, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused notBlacklisted(msg.sender) 
+    notBlacklisted(to) returns (bool) {
+        return super.transfer(to, amount);
+    }
+    /**
+     * @dev Override transferFrom function to check for pause status and blacklist
+     * @param from The address to transfer from
+     * @param to The address to transfer to
+     * @param amount The amount of tokens to transfer
+     * @return bool True if the transfer is successful
+     */
+    function transferFrom(address from, address to, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused notBlacklisted(msg.sender) 
+    notBlacklisted(to) returns (bool) {
+        return super.transferFrom(from, to, amount);
+    }
+    /**
+     * @dev Override approve function to check for pause status and blacklist
+     * @param spender The address to approve
+     * @param amount The amount of tokens to approve
+     * @return bool True if the approval is successful
+     */
+    function approve(address spender, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused 
+    notBlacklisted(msg.sender) 
+    notBlacklisted(spender) 
+    returns (bool) {
+        return super.approve(spender, amount);
+    }
     /**
      * @dev Get current emission rate and progress
      */
@@ -223,39 +243,6 @@ contract BitDSMToken is
         remainingTime = timePassed >= EMISSION_PERIOD ? 0 : EMISSION_PERIOD - timePassed;
         nextEmission = getNextEmissionAmount();
         isPaused = emissionsPaused;
-    }
-
-    /**
-     * @dev Schedule a supply cap update through timelock
-     * @param newCap New maximum supply cap
-     */
-    function scheduleSetMaxSupplyCap(uint256 newCap) external onlyOwner {
-        require(newCap >= totalSupply(), "Cap cannot be less than current supply");
-        
-        bytes memory data = abi.encodeWithSelector(
-            this.setMaxSupplyCap.selector,
-            newCap
-        );
-        
-        TokenTimelock timelock = TokenTimelock(payable(owner()));
-        bytes32 actionId = timelock.hashOperation(
-            address(this),
-            0,
-            data,
-            bytes32(0),
-            bytes32(0)
-        );
-        
-        timelock.schedule(
-            address(this),
-            0,
-            data,
-            bytes32(0),
-            bytes32(0),
-            TIMELOCK_MIN_DELAY
-        );
-        
-        emit ActionScheduled(actionId, block.timestamp + TIMELOCK_MIN_DELAY);
     }
 
     /**
@@ -339,38 +326,20 @@ contract BitDSMToken is
     function executeAddGuardian(bytes32 operationId, address guardian) external onlyOwner {
         TimelockOperation storage operation = timelockOperations[operationId];
         
-        try this._validateTimelockOperation(operation, "ADD_GUARDIAN", guardian) {
-            try this._addGuardian(guardian) {
-                operation.executed = true;
-                emit GuardianAdded(guardian);
-            } catch Error(string memory reason) {
-                emit GuardianOperationFailed(
-                    operationId,
-                    guardian,
-                    "ADD_GUARDIAN",
-                    reason
-                );
-            }
-        } catch Error(string memory reason) {
-            emit GuardianOperationFailed(
-                operationId,
-                guardian,
-                "ADD_GUARDIAN",
-                reason
-            );
-        }
-    }
-
-    /**
-     * @dev Internal function for adding guardian
-     */
-    function _addGuardian(address guardian) external {
-        require(msg.sender == address(this), "Only internal");
+        // Validate timelock operation
+        _validateTimelockOperation(operation, "ADD_GUARDIAN", guardian);
+        
+        // Validate guardian requirements
         require(guardian != address(0), "Invalid guardian address");
         require(!guardians[guardian], "Already a guardian");
         
+        // Add guardian
         guardians[guardian] = true;
         guardianList.push(guardian);
+        
+        // Mark operation as executed
+        operation.executed = true;
+        emit GuardianAdded(guardian);
     }
 
     /**
@@ -404,36 +373,14 @@ contract BitDSMToken is
     function executeRemoveGuardian(bytes32 operationId, address guardian) external onlyOwner {
         TimelockOperation storage operation = timelockOperations[operationId];
         
-        try this._validateTimelockOperation(operation, "REMOVE_GUARDIAN", guardian) {
-            try this._removeGuardian(guardian) {
-                operation.executed = true;
-                emit GuardianRemoved(guardian);
-            } catch Error(string memory reason) {
-                emit GuardianOperationFailed(
-                    operationId,
-                    guardian,
-                    "REMOVE_GUARDIAN",
-                    reason
-                );
-            }
-        } catch Error(string memory reason) {
-            emit GuardianOperationFailed(
-                operationId,
-                guardian,
-                "REMOVE_GUARDIAN",
-                reason
-            );
-        }
-    }
-
-    /**
-     * @dev Internal function for removing guardian
-     */
-    function _removeGuardian(address guardian) external {
-        require(msg.sender == address(this), "Only internal");
+        // Validate timelock operation
+        _validateTimelockOperation(operation, "REMOVE_GUARDIAN", guardian);
+        
+        // Validate guardian requirements
         require(guardians[guardian], "Not a guardian");
         require(guardianList.length > MIN_GUARDIANS, "Cannot remove guardian below minimum");
         
+        // Remove guardian
         guardians[guardian] = false;
         for (uint i = 0; i < guardianList.length; i++) {
             if (guardianList[i] == guardian) {
@@ -442,6 +389,10 @@ contract BitDSMToken is
                 break;
             }
         }
+        
+        // Mark operation as executed
+        operation.executed = true;
+        emit GuardianRemoved(guardian);
     }
 
     /**
@@ -454,7 +405,7 @@ contract BitDSMToken is
         TimelockOperation memory operation,
         string memory operationType,
         address guardian
-    ) external view {
+    ) internal view{
         bytes32 expectedOperationId = keccak256(
             abi.encodePacked(operationType, guardian, operation.scheduledTime - GUARDIAN_TIMELOCK_DELAY)
         );
@@ -674,23 +625,7 @@ contract BitDSMToken is
         emit EmergencyActionExecuted(actionId);
     }
 
-    // Override transfer functions to check for pause status
-    function transfer(address to, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused notBlacklisted(msg.sender) 
-    notBlacklisted(to) returns (bool) {
-        return super.transfer(to, amount);
-    }
-
-    function transferFrom(address from, address to, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused notBlacklisted(msg.sender) 
-    notBlacklisted(to) returns (bool) {
-        return super.transferFrom(from, to, amount);
-    }
     
-    function approve(address spender, uint256 amount) public override (ERC20Upgradeable, IToken) whenNotPaused 
-    notBlacklisted(msg.sender) 
-    notBlacklisted(spender) 
-    returns (bool) {
-        return super.approve(spender, amount);
-    }
     /**
      * @dev Cancel a scheduled timelock operation
      */
@@ -745,11 +680,8 @@ contract BitDSMToken is
     function getLastEmissionTime() external view returns (uint256) {
         return lastEmissionTime;
     }
-    function getEmissionRate() external view returns (uint256) {
-        return emissionRate;
-    }
-    function getMaxSupplyCap() external view returns (uint256) {
-        return maxSupplyCap;
+    function getTotalSupply() external pure returns (uint256) {
+        return TOTAL_SUPPLY;
     }
     function getEmissionsPaused() external view returns (bool) {
         return emissionsPaused;
@@ -759,8 +691,5 @@ contract BitDSMToken is
     }
     function getBlacklisted(address) external view returns (bool) {
         return blacklisted[msg.sender];
-    }
-    function getDailyMinted(uint256 day) external view returns (uint256) {
-        return dailyMinted[day];
     }
 }

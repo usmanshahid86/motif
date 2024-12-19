@@ -15,12 +15,6 @@ interface ITokenInterface {
     /// @notice Guardian System Events
     event GuardianAdded(address indexed guardian);
     event GuardianRemoved(address indexed guardian);
-    event GuardianOperationFailed(
-        bytes32 indexed operationId,
-        address indexed guardian,
-        string operationType,
-        string reason
-    );
     
     /// @notice Emergency System Events
     event EmergencyActionProposed(bytes32 indexed actionId, string actionType);
