@@ -6,21 +6,26 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "../src/governance/Token.sol";
 import "../src/governance/TokenTimelock.sol";
-
+ // Your existing ProxyAdmin address
+    address constant PROXY_ADMIN = 0x71e4eFEcF796bBBC562f639ADde036784F67a563;  // Replace with your ProxyAdmin address
 contract DeployUpgradeableToken is Script {
     function run() external {
-        vm.startBroadcast();
+        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        address deployer = vm.addr(deployerPrivateKey);
+
+       // Verify ProxyAdmin exists and deployer has admin rights
+        ProxyAdmin proxyAdmin = ProxyAdmin(PROXY_ADMIN);
+        require(proxyAdmin.owner() == deployer, "Deployer is not ProxyAdmin owner");
+
+        vm.startBroadcast(deployerPrivateKey);
 
         // Deploy implementation
         BitDSMToken implementation = new BitDSMToken();
-
-        // Deploy ProxyAdmin
-        ProxyAdmin proxyAdmin = new ProxyAdmin();
-
         // Prepare initialization data
         bytes memory initData = abi.encodeWithSelector(
             BitDSMToken.initialize.selector,
-            msg.sender);  // initialOwner
+            msg.sender, // initialOwner
+            msg.sender);  // initialSupplyDistributor
 
         // Deploy transparent proxy
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
@@ -30,7 +35,7 @@ contract DeployUpgradeableToken is Script {
         );
 
         // The token is now deployed at the proxy address
-        BitDSMToken token = BitDSMToken(address(proxy));
+        BitDSMToken token = BitDSMToken(payable(address(proxy)));
 
         // Enable Timelock
         // Setup timelock roles

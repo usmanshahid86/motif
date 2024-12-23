@@ -27,20 +27,21 @@ contract BitDSMToken is
     function initialize(
         address initialOwner,
         address initialSupplyDistributor
-    ) public initializer {
+    ) external initializer {
+        require(initialOwner != address(0), "Invalid owner address");
+        require(initialSupplyDistributor != address(0), "Invalid supply distributor address");
         _initializing = true;
         __ERC20_init("BitDSM Token", "BDSM");
         __Ownable_init();
-        _transferOwnership(initialOwner);
         __Pausable_init();
         __ReentrancyGuard_init();
 
+        _transferOwnership(initialOwner);
+        _mint(initialSupplyDistributor, INITIAL_SUPPLY);
         startTime = block.timestamp;
         lastEmissionTime = startTime;
-        _mint(initialSupplyDistributor, INITIAL_SUPPLY);
         _initializing = false;
 
-        guardianList = new address[](0);
     }
 
     /**
@@ -55,7 +56,7 @@ contract BitDSMToken is
      * @dev Pause or unpause emissions
      * @param pause True to pause, false to unpause
      */
-    function setEmissionsPaused(bool pause) external onlyOwner {
+    function _setEmissionsPaused(bool pause) internal {
         emissionsPaused = pause;
         emit EmissionsPaused(pause);
     }
@@ -117,7 +118,9 @@ contract BitDSMToken is
                 daysToEmit,
                 totalMintAmount,
                 totalSupply(),
-                block.timestamp
+                block.timestamp,
+                (block.timestamp - startTime) / HALVING_PERIOD,  // Current period
+                getNextEmissionAmount()                          // Next emission
             );
         }
         
@@ -232,13 +235,18 @@ contract BitDSMToken is
      * @dev Schedule emissions pause state change through timelock
      * @param pause True to pause, false to unpause
      */
-    function scheduleSetEmissionsPaused(bool pause) external onlyOwner {
+    function scheduleSetTokenEmissionsPaused(bool pause) external onlyOwner {
+        address timelockAddress = owner();
+        require(timelockAddress != address(0), "Timelock not set");
+        require(Address.isContract(timelockAddress), "Owner must be timelock");
+               TokenTimelock timelock = TokenTimelock(payable(timelockAddress));
+
         bytes memory data = abi.encodeWithSelector(
-            this.setEmissionsPaused.selector,
+            SET_EMISSIONS_PAUSED_SELECTOR,
             pause
         );
-        
-        TokenTimelock timelock = TokenTimelock(payable(owner()));
+        // Validate function selector
+        require(bytes4(data) == SET_EMISSIONS_PAUSED_SELECTOR, "Invalid selector");
         bytes32 actionId = timelock.hashOperation(
             address(this),
             0,
@@ -246,7 +254,8 @@ contract BitDSMToken is
             bytes32(0),
             bytes32(0)
         );
-        
+        require(!scheduledTokenTimelockOperations[actionId], "Operation already scheduled");
+        scheduledTokenTimelockOperations[actionId] = true;
         timelock.schedule(
             address(this),
             0,
@@ -256,21 +265,65 @@ contract BitDSMToken is
             TIMELOCK_MIN_DELAY
         );
         
-        emit ActionScheduled(actionId, block.timestamp + TIMELOCK_MIN_DELAY);
+        emit TokenTimelockOperationScheduled(
+            actionId,
+            address(this),
+            0,
+            data,
+            block.timestamp + TIMELOCK_MIN_DELAY
+        );
     }
 
     /**
      * @dev Execute a scheduled timelock operation
      */
-    function executeTimelockOperation(
+    function executeTokenTimelockOperation(
         address target,
         uint256 value,
         bytes calldata data,
         bytes32 predecessor,
         bytes32 salt
     ) external {
-        TokenTimelock timelock = TokenTimelock(payable(owner()));
+        require(target == address(this), "Invalid target");
+        require(value == 0, "Value must be 0");
+        address timelockAddress = owner();  
+        require(timelockAddress != address(0), "Timelock not set");
+        require(Address.isContract(timelockAddress), "Owner must be timelock");
+        
+     TokenTimelock timelock = TokenTimelock(payable(timelockAddress));
+
+         bytes32 operationId = timelock.hashOperation(
+            target,
+            value,
+            data,
+            predecessor,
+            salt
+        );
+        
+        require(scheduledTokenTimelockOperations[operationId], "Operation not scheduled");
+        require(!executedTokenTimelockOperations[operationId], "Operation already executed");
+        
+        executedTokenTimelockOperations[operationId] = true;
         timelock.execute(target, value, data, predecessor, salt);
+        emit TokenTimelockOperationExecuted(
+            operationId,
+            target,
+            value,
+            data
+        );
+    }
+
+    function cancelTokenTimelockOperation(bytes32 operationId) external onlyOwner {
+        // PROPOSERS ARE CANCELLERS
+        require(scheduledTokenTimelockOperations[operationId], "Operation not scheduled");
+        require(!executedTokenTimelockOperations[operationId], "Operation already executed");
+        // get timelock TokenTimelock contract
+         address timelockAddress = owner(); 
+        TokenTimelock timelock = TokenTimelock(payable(timelockAddress));
+    
+        timelock.cancel(operationId);
+        delete scheduledTokenTimelockOperations[operationId];
+        emit TokenTimelockOperationCancelled(operationId);
     }
 
     modifier onlyGuardian() {
@@ -287,7 +340,7 @@ contract BitDSMToken is
         require(!guardians[guardian], "Already a guardian");
         
         bytes32 operationId = keccak256(
-            abi.encodePacked("ADD_GUARDIAN", guardian, block.timestamp)
+            abi.encodePacked("ADD_GUARDIAN", guardian, block.timestamp + GUARDIAN_TIMELOCK_DELAY)
         );
         
         timelockOperations[operationId] = TimelockOperation({
@@ -315,11 +368,11 @@ contract BitDSMToken is
         // Validate guardian requirements
         require(guardian != address(0), "Invalid guardian address");
         require(!guardians[guardian], "Already a guardian");
-        
-        // Add guardian
+        require(!Address.isContract(guardian), "Guardian cannot be contract");
+        require(guardianCount < MAX_GUARDIANS, "Guardian list is full");
         guardians[guardian] = true;
-        guardianList.push(guardian);
-        
+        guardianList[guardianCount] = guardian;
+        guardianCount++;
         // Mark operation as executed
         operation.executed = true;
         emit GuardianAdded(guardian);
@@ -331,10 +384,10 @@ contract BitDSMToken is
      */
     function scheduleRemoveGuardian(address guardian) external onlyOwner {
         require(guardians[guardian], "Not a guardian");
-        require(guardianList.length > MIN_GUARDIANS, "Cannot remove guardian below minimum");
+        require(guardianCount > MIN_GUARDIANS, "Cannot remove guardian below minimum");
         
         bytes32 operationId = keccak256(
-            abi.encodePacked("REMOVE_GUARDIAN", guardian, block.timestamp)
+            abi.encodePacked("REMOVE_GUARDIAN", guardian, block.timestamp + GUARDIAN_TIMELOCK_DELAY)
         );
         
         timelockOperations[operationId] = TimelockOperation({
@@ -361,14 +414,15 @@ contract BitDSMToken is
         
         // Validate guardian requirements
         require(guardians[guardian], "Not a guardian");
-        require(guardianList.length > MIN_GUARDIANS, "Cannot remove guardian below minimum");
+        require(guardianCount > MIN_GUARDIANS, "Cannot remove guardian below minimum");
         
         // Remove guardian
         guardians[guardian] = false;
-        for (uint i = 0; i < guardianList.length; i++) {
+        for (uint i = 0; i < guardianCount; i++) {
             if (guardianList[i] == guardian) {
-                guardianList[i] = guardianList[guardianList.length - 1];
-                guardianList.pop();
+                guardianList[i] = guardianList[guardianCount - 1];
+                guardianList[guardianCount - 1] = address(0);
+                guardianCount--;
                 break;
             }
         }
@@ -390,7 +444,7 @@ contract BitDSMToken is
         address guardian
     ) internal view{
         bytes32 expectedOperationId = keccak256(
-            abi.encodePacked(operationType, guardian, operation.scheduledTime - GUARDIAN_TIMELOCK_DELAY)
+            abi.encodePacked(operationType, guardian, operation.scheduledTime)
         );
         
         if (operation.scheduledTime == 0) revert OperationNotScheduled();
@@ -399,7 +453,7 @@ contract BitDSMToken is
         
         // Verify operation matches expected parameters
         require(
-            keccak256(abi.encodePacked(operationType, guardian, operation.scheduledTime - GUARDIAN_TIMELOCK_DELAY)) == expectedOperationId,
+            keccak256(abi.encodePacked(operationType, guardian, operation.scheduledTime)) == expectedOperationId,
             "Invalid operation parameters"
         );
     }
@@ -422,17 +476,6 @@ contract BitDSMToken is
         bytes32 actionId = keccak256(abi.encodePacked("UNPAUSE", block.timestamp));
         _initializeEmergencyAction(actionId);
         emit EmergencyActionProposed(actionId, "UNPAUSE");
-    }
-
-    /**
-     * @dev Propose an emergency burn of tokens from a specific address
-     * @param from Address to burn tokens from
-     * @param amount Amount of tokens to burn
-     */
-    function proposeEmergencyBurn(address from, uint256 amount) external onlyGuardian {
-        bytes32 actionId = keccak256(abi.encodePacked("BURN", from, amount, block.timestamp));
-        _initializeEmergencyAction(actionId);
-        emit EmergencyActionProposed(actionId, "BURN");
     }
 
     /**
@@ -522,60 +565,6 @@ contract BitDSMToken is
         }
     }
 
-    /**
-     * @dev Execute an emergency burn action with failure handling
-     */
-    // function executeEmergencyBurn(
-    //     bytes32 actionId,
-    //     address from,
-    //     uint256 amount
-    // ) external onlyGuardian {
-    //     (bool validationSuccess, string memory validationError) = _validateEmergencyActionWithError(actionId);
-    //     if (!validationSuccess) {
-    //         emit EmergencyActionFailed(actionId, "BURN", validationError);
-    //         return;
-    //     }
-
-    //     // Attempt to burn tokens
-    //     bool success = _burn(from, amount);
-        
-    //     if (success) {
-    //         emit EmergencyTokensBurned(from, amount);
-    //         _markActionExecuted(actionId);
-    //     } else {
-    //         emit EmergencyActionFailed(
-    //             actionId,
-    //             "BURN",
-    //             "Burn operation failed"
-    //         );
-    //     }
-    // }
-
-    /**
-     * @dev Emergency withdrawal of stuck tokens
-     * @param token Address of the token to withdraw (zero address for ETH)
-     * @param to Address to send the tokens to
-     * @param amount Amount to withdraw
-     */
-    function emergencyWithdraw(address token, address to, uint256 amount) external onlyGuardian {
-        bytes32 actionId = keccak256(abi.encodePacked("WITHDRAW", token, to, amount, block.timestamp));
-        (bool validationSuccess, string memory validationError) = _validateEmergencyActionWithError(actionId);
-        
-        if (!validationSuccess) {
-            emit EmergencyActionFailed(actionId, "WITHDRAW", validationError);
-            return;
-        }
-        
-        if (token == address(0)) {
-            payable(to).transfer(amount);
-        } else {
-            IERC20Upgradeable(token).transfer(to, amount);
-        }
-        
-        emit EmergencyWithdrawal(token, to, amount);
-        _markActionExecuted(actionId);
-    }
-
     // Internal helper functions
     function _initializeEmergencyAction(bytes32 actionId) internal {
         require(block.timestamp >= lastEmergencyAction + EMERGENCY_COOLDOWN, "Emergency cooldown not passed");
@@ -610,13 +599,13 @@ contract BitDSMToken is
 
     
     /**
-     * @dev Cancel a scheduled timelock operation
+     * @dev Cancel a scheduled Emergency timelock operation
      */
-    function cancelTimelockOperation(
+    function cancelEmergencyTimelockOperation(
         bytes32 operationId,
         address guardian,
         string memory operationType
-    ) external onlyOwner {
+    ) external onlyGuardian {
         TimelockOperation storage operation = timelockOperations[operationId];
         require(operation.scheduledTime != 0, "Operation does not exist");
         require(!operation.executed, "Operation already executed");
@@ -652,10 +641,14 @@ contract BitDSMToken is
     }
     /**
      * @dev Returns the list of guardian addresses
-     * @return guardianList Array of guardian addresses
+     * @return activeGuardians Array of guardian addresses
      */
-    function getGuardianList() external view returns (address[] memory) {
-        return guardianList;
+    function getGuardianList() external view returns (address[] memory activeGuardians) {
+        activeGuardians = new address[](guardianCount);
+        for (uint i = 0; i < guardianCount; i++) {
+            activeGuardians[i] = guardianList[i];
+        }
+        return activeGuardians;
     }
     function getStartTime() external view returns (uint256) {
         return startTime;
@@ -671,5 +664,19 @@ contract BitDSMToken is
     }
     function getGuardians(address) external view returns (bool) {
         return guardians[msg.sender];
+    }
+
+    /**
+     * @dev Explicitly revert any ETH sent to the contract
+     */
+    receive() external payable {
+        revert("Token: does not accept ETH");
+    }
+
+    /**
+     * @dev Explicitly revert any fallback calls
+     */
+    fallback() external payable {
+        revert("Token: does not accept ETH");
     }
 }

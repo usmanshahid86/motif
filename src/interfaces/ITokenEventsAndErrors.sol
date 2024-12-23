@@ -7,11 +7,16 @@ interface ITokenInterface {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Token Operation Events
-    event TokensEmitted(uint256 amount, uint256 newTotalSupply, uint256 timestamp);
+   event AccumulatedEmission(
+        uint256 daysAccumulated,
+        uint256 amountMinted,
+        uint256 newTotalSupply,
+        uint256 timestamp,
+        uint256 currentHalvingPeriod,    // Add this
+        uint256 nextDailyEmission        // Add this
+    );
     event EmissionsPaused(bool isPaused);
-    event MaxSupplyCapUpdated(uint256 newCap);
-    event EmissionRateAdjusted(uint256 oldRate, uint256 newRate);
-    
+
     /// @notice Guardian System Events
     event GuardianAdded(address indexed guardian);
     event GuardianRemoved(address indexed guardian);
@@ -40,14 +45,22 @@ interface ITokenInterface {
         bool isAddition,
         uint256 scheduledTime
     );
-    event ActionScheduled(bytes32 indexed actionId, uint256 executionTime);
-    event EmissionHalved(uint256 indexed halvingPeriod, uint256 newEmissionRate);
-    event AccumulatedEmission(
-        uint256 daysAccumulated,
-        uint256 totalAmount,
-        uint256 newTotalSupply,
-        uint256 timestamp
+    event TokenTimelockOperationScheduled(
+        bytes32 indexed operationId,
+        address target,
+        uint256 value,
+        bytes data,
+        uint256 executeTime
     );
+
+    event TokenTimelockOperationExecuted(
+        bytes32 indexed operationId,
+        address target,
+        uint256 value,
+        bytes data
+    ); 
+    event TokenTimelockOperationCancelled(bytes32 indexed operationId);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -55,9 +68,6 @@ interface ITokenInterface {
     /// @notice Operation Errors
     error EmissionsPausedError();
     error SupplyCapExceeded(uint256 attempted, uint256 cap);
-    error InvalidRate(uint256 rate);
-    error RateTooHigh(uint256 rate);
-    error RateTooLow(uint256 rate);
     
     /// @notice Guardian System Errors
     error NotGuardian();

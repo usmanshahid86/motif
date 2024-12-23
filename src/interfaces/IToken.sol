@@ -48,7 +48,7 @@ interface IToken is ITokenInterface {
                             ADMIN FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     
-    function setEmissionsPaused(bool pause) external;
+   
 
     /*//////////////////////////////////////////////////////////////
                             GUARDIAN FUNCTIONS
@@ -65,25 +65,25 @@ interface IToken is ITokenInterface {
     
     function proposeEmergencyPause() external;
     function proposeEmergencyUnpause() external;
-    function proposeEmergencyBurn(address from, uint256 amount) external;
     function approveEmergencyAction(bytes32 actionId) external;
     function executeEmergencyPause(bytes32 actionId) external;
     function executeEmergencyUnpause(bytes32 actionId) external;
-    function emergencyWithdraw(address token, address to, uint256 amount) external;
 
     /*//////////////////////////////////////////////////////////////
                             TIMELOCK FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     
-    function scheduleSetEmissionsPaused(bool pause) external;
-    function executeTimelockOperation(
+    function scheduleSetTokenEmissionsPaused(bool pause) external;
+    function executeTokenTimelockOperation(
         address target,
         uint256 value,
         bytes calldata data,
         bytes32 predecessor,
         bytes32 salt
     ) external;
-    function cancelTimelockOperation(
+    function cancelTokenTimelockOperation(bytes32 operationId) external;
+    
+    function cancelEmergencyTimelockOperation(
         bytes32 operationId,
         address guardian,
         string memory operationType
