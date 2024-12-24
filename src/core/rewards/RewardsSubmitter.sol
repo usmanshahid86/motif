@@ -6,43 +6,31 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../interfaces/IToken.sol";
 import "../interfaces/IRewardsCoordinator.sol";
+import "./DAOContract.sol";
 
-contract RewardsSubmitter is OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
-    /// @notice BitDSM token contract
-    IToken public token;
-    
-    /// @notice EigenLayer's RewardsCoordinator contract
-    IRewardsCoordinator public rewardsCoordinator;
-    
-    /// @notice Address where non-operator rewards are sent
-    address public treasury;
-    
-    /// @notice Percentage of emissions that go to operators (in basis points, e.g. 7000 = 70%)
-    uint16 public operatorRewardsBips;
-    
-    /// @notice Minimum time between reward submissions
-    uint256 public constant MIN_SUBMISSION_INTERVAL = 1 days;
-    
-    /// @notice Last time rewards were submitted
-    uint256 public lastSubmissionTime;
+contract RewardSubmitter is OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
+    IToken public token;                          // BitDSM token contract
+    IRewardsCoordinator public rewardsCoordinator; // EigenLayer's RewardsCoordinator contract
+    DAOContract public daoContract;               // DAO contract for split and AVS weights
 
-    event RewardsSubmitted(uint256 operatorAmount, uint256 treasuryAmount);
-    event TreasuryUpdated(address oldTreasury, address newTreasury);
-    event OperatorRewardsBipsUpdated(uint16 oldBips, uint16 newBips);
+    uint256 public constant MIN_SUBMISSION_INTERVAL = 1 days; // Minimum time between submissions
+    uint256 public lastSubmissionTime;                       // Timestamp of last submission
 
-    error InvalidAddress();
-    error InvalidBips();
+    event RewardsSubmitted(uint256 operatorAmount, uint256 totalAVSAmount);
+    event DAOContractUpdated(address oldDAOContract, address newDAOContract);
+
     error TooEarlyToSubmit();
+    error InvalidAddress();
+    error ZeroWeight();
 
     function initialize(
         address _token,
         address _rewardsCoordinator,
-        address _treasury,
-        uint16 _operatorRewardsBips
+        address _daoContract
     ) external initializer {
-        if (_token == address(0) || _rewardsCoordinator == address(0) || _treasury == address(0)) 
-            revert InvalidAddress();
-        if (_operatorRewardsBips > 10000) revert InvalidBips();
+        require(_token != address(0), "Invalid token address");
+        require(_rewardsCoordinator != address(0), "Invalid rewards coordinator address");
+        require(_daoContract != address(0), "Invalid DAO contract address");
 
         __Ownable_init();
         __Pausable_init();
@@ -50,89 +38,87 @@ contract RewardsSubmitter is OwnableUpgradeable, PausableUpgradeable, Reentrancy
 
         token = IToken(_token);
         rewardsCoordinator = IRewardsCoordinator(_rewardsCoordinator);
-        treasury = _treasury;
-        operatorRewardsBips = _operatorRewardsBips;
+        daoContract = DAOContract(_daoContract);
     }
 
     /**
-     * @notice Triggers token emission and submits rewards
-     * @dev Can only be called once per MIN_SUBMISSION_INTERVAL
+     * @notice Submits token emissions and distributes rewards to operators and AVSs
      */
     function submitEmissionRewards() external nonReentrant whenNotPaused {
-        if (block.timestamp < lastSubmissionTime + MIN_SUBMISSION_INTERVAL) 
+        if (block.timestamp < lastSubmissionTime + MIN_SUBMISSION_INTERVAL) {
             revert TooEarlyToSubmit();
+        }
 
         // Emit new tokens to this contract
         (uint256 emittedAmount,) = token.emitNewTokens(address(this));
-        
+
         if (emittedAmount > 0) {
-            // Calculate split
-            uint256 operatorAmount = (emittedAmount * operatorRewardsBips) / 10000;
-            uint256 treasuryAmount = emittedAmount - operatorAmount;
-            
-            // Transfer treasury portion
-            token.transfer(treasury, treasuryAmount);
-            
-            // Approve rewards coordinator to spend operator portion
+            // Fetch splits from DAO contract
+            uint16 operatorSplitBips = daoContract.operatorSplitBips();
+            uint16 avsSplitBips = daoContract.avsSplitBips();
+
+            // Calculate amounts
+            uint256 operatorAmount = (emittedAmount * operatorSplitBips) / 10000;
+            uint256 totalAVSAmount = emittedAmount - operatorAmount;
+
+            // Distribute operator rewards
             token.approve(address(rewardsCoordinator), operatorAmount);
-            
-            // Create rewards submission
-            IRewardsCoordinator.RewardsSubmission[] memory submissions = new IRewardsCoordinator.RewardsSubmission[](1);
-            submissions[0] = IRewardsCoordinator.RewardsSubmission({
+            IRewardsCoordinator.RewardsSubmission;
+            operatorRewards[0] = IRewardsCoordinator.RewardsSubmission({
                 token: IERC20(address(token)),
                 amount: operatorAmount,
-                startTimestamp: uint32(lastSubmissionTime),
+                startTimestamp: uint32(block.timestamp),
                 duration: uint32(MIN_SUBMISSION_INTERVAL),
-                strategiesAndMultipliers: _getStrategiesAndMultipliers()
+                strategiesAndMultipliers: _getOperatorStrategiesAndMultipliers()
             });
-            
-            // Submit to RewardsCoordinator
-            rewardsCoordinator.createAVSRewardsSubmission(submissions);
-            
-            emit RewardsSubmitted(operatorAmount, treasuryAmount);
+            rewardsCoordinator.createAVSRewardsSubmission(operatorRewards);
+
+            // Distribute AVS rewards
+            address[] memory activeAVSs = daoContract.getActiveAVSs();
+            uint256 totalWeight = daoContract.getTotalWeight();
+
+            require(totalWeight > 0, "Zero total AVS weight");
+            for (uint256 i = 0; i < activeAVSs.length; i++) {
+                address avs = activeAVSs[i];
+                uint256 avsWeight = daoContract.getAVSWeight(avs);
+                uint256 avsReward = (totalAVSAmount * avsWeight) / totalWeight;
+
+                if (avsReward > 0) {
+                    token.transfer(avs, avsReward);
+                }
+            }
+
+            emit RewardsSubmitted(operatorAmount, totalAVSAmount);
         }
-        
+
         lastSubmissionTime = block.timestamp;
     }
 
     /**
-     * @notice Updates the treasury address
-     * @param _treasury New treasury address
+     * @notice Updates the DAO contract address
+     * @param _daoContract New DAO contract address
      */
-    function setTreasury(address _treasury) external onlyOwner {
-        if (_treasury == address(0)) revert InvalidAddress();
-        address oldTreasury = treasury;
-        treasury = _treasury;
-        emit TreasuryUpdated(oldTreasury, _treasury);
+    function setDAOContract(address _daoContract) external onlyOwner {
+        require(_daoContract != address(0), "Invalid DAO contract address");
+        address oldDAOContract = address(daoContract);
+        daoContract = DAOContract(_daoContract);
+        emit DAOContractUpdated(oldDAOContract, _daoContract);
     }
 
     /**
-     * @notice Updates operator rewards percentage
-     * @param _operatorRewardsBips New percentage in basis points
-     */
-    function setOperatorRewardsBips(uint16 _operatorRewardsBips) external onlyOwner {
-        if (_operatorRewardsBips > 10000) revert InvalidBips();
-        uint16 oldBips = operatorRewardsBips;
-        operatorRewardsBips = _operatorRewardsBips;
-        emit OperatorRewardsBipsUpdated(oldBips, _operatorRewardsBips);
-    }
-
-    /**
-     * @dev Returns the strategies and their multipliers for rewards
+     * @dev Returns the strategies and their multipliers for operator rewards
      * Override this function to implement custom strategy weights
      */
-    function _getStrategiesAndMultipliers() internal view virtual returns (
+    function _getOperatorStrategiesAndMultipliers() internal view virtual returns (
         IRewardsCoordinator.StrategyAndMultiplier[] memory
     ) {
         IRewardsCoordinator.StrategyAndMultiplier[] memory strategies = 
-            new IRewardsCoordinator.StrategyAndMultiplier[](1);
-        
-        // Example: single strategy with 1x multiplier
+            new IRewardsCoordinator.StrategyAndMultiplier       // Example: single strategy with 1x multiplier
         strategies[0] = IRewardsCoordinator.StrategyAndMultiplier({
             strategy: IStrategy(address(token)),
             multiplier: 1
         });
-        
+
         return strategies;
     }
 }

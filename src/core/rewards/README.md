@@ -1,53 +1,124 @@
-# RewardsSubmitter Contract
+# BitDSM Rewards Distribution Framework
+
+The BitDSM Rewards Distribution Framework is designed to handle the emission, allocation, and distribution of rewards for operators and application-specific validators (AVSs). This framework includes two core smart contracts:
+
+1. **RewardSubmitter.sol**: Handles the daily emissions, calculates splits, and distributes rewards.
+2. **DAOContract.sol**: Manages governance-related configurations, such as reward splits and AVS weights.
 
 ## Overview
 
-The `RewardsSubmitter` contract enables seamless integration with EigenLayer's Rewards V2 system for efficient token emissions and reward distribution. This contract:
-- **Splits Emissions**: Automatically distributes token emissions between operators and the treasury.
-- **Configurable Split Ratio**: Allows customization of reward percentages for operators and treasury allocations.
-- **Daily Submission Interval**: Matches the token emission schedule to ensure regular updates.
-- **EigenLayer Integration**: Utilizes EigenLayer's `RewardsCoordinator` for operator reward distributions.
-- **Treasury Management**: Maintains treasury funds for team, investors, or exchange allocations.
+This implementation ensures efficient, fair, and scalable reward distribution while allowing dynamic configurations via DAO governance.
+
+### Key Features
+
+- **Dynamic Reward Splits**: The reward split between operators and AVSs can be adjusted via the DAO.
+- **Proportional AVS Rewards**: Rewards are distributed among AVSs based on their weighted contributions.
+- **Operator Incentives**: Incentivizes operators to maintain the integrity and security of the ecosystem.
+- **Upgradeability**: Supports seamless upgrades to governance and reward logic.
+- **DAO Integration**: Centralized governance for configurations with the potential to expand into a decentralized DAO.
 
 ---
 
-## Features
-1. Automatically splits emissions between operators and treasury.
-2. Configurable split ratio (e.g., `70%` for operators, `30%` for treasury).
-3. Supports a daily submission interval for token emissions.
-4. Integrates with EigenLayer’s `RewardsCoordinator` for operator distributions.
-5. Allows for secure treasury fund management via multi-signature wallets.
+## Contract Interactions
+
+### **RewardSubmitter.sol**
+
+This contract handles the emission and distribution of rewards. It integrates with `DAOContract` to dynamically fetch configurations like splits and AVS weights.
+
+#### Workflow:
+1. **Emit Tokens**: The `submitEmissionRewards` function triggers token emissions from the `BitDSMToken` contract.
+2. **Fetch Configurations**: Reward splits (e.g., operator vs. AVS) and AVS weights are fetched from `DAOContract`.
+3. **Operator Rewards**:
+   - Allocates the operator's share of rewards.
+   - Distributes the rewards using EigenLayer's `RewardsCoordinator`.
+4. **AVS Rewards**:
+   - Allocates the AVS share of rewards.
+   - Distributes rewards to active AVSs proportionally based on their weights.
+
+#### Key Functions:
+- `submitEmissionRewards`: Handles daily emissions and distributes rewards.
+- `setDAOContract`: Updates the DAO contract for governance configurations.
+
+#### Events:
+- `RewardsSubmitted`: Emitted when rewards are successfully distributed.
+- `DAOContractUpdated`: Emitted when the DAO contract address is updated.
 
 ---
 
-## How to Implement
+### **DAOContract.sol**
 
-### Steps to Deploy
-1. Deploy the `RewardsSubmitter` contract.
-2. Set it as the distributor in your `Token.sol` contract.
-3. Configure the operator rewards percentage (e.g., `7000` for `70%`).
-4. Set up a **treasury multisig** for non-operator funds.
+This contract acts as the governance layer for reward configurations, allowing adjustments to splits and AVS weights.
 
-## Benefits of This Implementation
+#### Workflow:
+1. **Define Reward Splits**:
+   - `operatorSplitBips`: Percentage of rewards allocated to operators (in basis points).
+   - `avsSplitBips`: Percentage of rewards allocated to AVSs.
+2. **Manage AVS Weights**:
+   - Adds or removes AVSs.
+   - Updates weights for active AVSs.
+3. **Governance by Multisig**:
+   - Configurations and updates are controlled by a multisig address.
 
-- **Automated Operator Rewards**: Automatically calculates and distributes rewards to operators using EigenLayer.
-- **Configurable Split Ratio**: Flexible reward allocation between operators and treasury.
-- **Treasury Control**: Ensures non-operator funds are securely managed for broader ecosystem support.
-- **Upgradeability**: Supports future enhancements with upgradable contract design.
-- **Gas Efficiency**: Optimized for minimal overhead during daily emissions and reward submissions.
+#### Key Functions:
+- `setRewardSplits`: Updates the reward split percentages.
+- `addOrUpdateAVS`: Adds or updates an AVS with a specific weight.
+- `removeAVS`: Removes an AVS from the active list.
+- `getAVSWeight`: Retrieves the weight of a specific AVS.
+- `getTotalWeight`: Calculates the total weight of all active AVSs.
+
+#### Events:
+- `RewardSplitsUpdated`: Emitted when the reward splits are updated.
+- `AVSUpdated`: Emitted when an AVS is added or updated.
+- `AVSRemoved`: Emitted when an AVS is removed.
 
 ---
 
-## Notes for Customization
+## How `RewardSubmitter` and `DAOContract` Work Together
 
-- **Strategies and Multipliers**: Customize the `_getStrategiesAndMultipliers` function based on your specific staking strategies and weights.
-- **Treasury Management**: Use a multisig wallet for secure and collaborative treasury operations.
-- **Pause Functionality**: Leverage the pause mechanism to handle unexpected events without disruption.
+1. The `RewardSubmitter` contract retrieves the reward split configuration (`operatorSplitBips` and `avsSplitBips`) from the `DAOContract`.
+2. The `RewardSubmitter` contract calculates the operator's share of rewards and distributes it using EigenLayer's `RewardsCoordinator`.
+3. The remaining AVS rewards are distributed proportionally based on the weights managed by the `DAOContract`.
+4. The `DAOContract` ensures flexibility by allowing updates to reward splits and AVS weights through multisig governance.
+
+---
+
+## Example Use Case
+
+1. **Token Emission**:
+   - `submitEmissionRewards` is called on `RewardSubmitter`.
+   - Rewards are emitted from `BitDSMToken` to `RewardSubmitter`.
+
+2. **Operator Rewards**:
+   - 70% of rewards (as an example) are allocated to operators.
+   - These rewards are submitted to EigenLayer's `RewardsCoordinator`.
+
+3. **AVS Rewards**:
+   - The remaining 30% is distributed among AVSs based on their weights.
+
+4. **Governance**:
+   - The multisig wallet updates the reward split to 60:40 (operator:AVS).
+   - An AVS weight is adjusted to reflect its contribution to the ecosystem.
 
 ---
 
 ## Future Enhancements
 
-1. **Dynamic Emission Rates**: Introduce logic for emission adjustments based on market or protocol conditions.
-2. **Epoch-Based Submissions**: Extend the interval system to epochs for greater flexibility.
-3. **Multisig Integration**: Add multisig functionality for key operations like treasury updates and emission approvals.
+- **Decentralized Governance**: Expand the DAO to allow community voting on reward splits and AVS weights.
+- **Dynamic Emission Rates**: Introduce market-driven emission adjustments.
+- **Support for New Applications**: Add modularity for additional reward distribution mechanisms.
+
+---
+
+## Deployment Instructions
+
+1. Deploy `BitDSMToken` and initialize it with the initial owner and supply distributor.
+2. Deploy `DAOContract` and configure the multisig wallet.
+3. Deploy `RewardSubmitter` and initialize it with the token, rewards coordinator, and DAO contract addresses.
+4. Set `RewardSubmitter` as the distributor in `BitDSMToken`.
+5. Configure reward splits and AVS weights in `DAOContract`.
+
+---
+
+## Conclusion
+
+The `RewardSubmitter` and `DAOContract` work in tandem to provide a flexible, scalable, and decentralized reward distribution framework for the BitDSM ecosystem. This architecture ensures fairness, incentivization, and adaptability for both operators and AVSs, laying the groundwork for a robust and sustainable ecosystem.
