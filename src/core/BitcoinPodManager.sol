@@ -111,8 +111,8 @@ contract BitcoinPodManager is
     }
 
     // @inheritdoc IBitcoinPodManager
-    function getPodApp(address pod) external view override returns (address) {
-        return _podToApp[pod];
+    function getPodApps(address pod) external view returns (address[] memory) {
+        return _podToApps[pod];
     }
 
     // @inheritdoc IBitcoinPodManager
@@ -182,13 +182,26 @@ contract BitcoinPodManager is
     * - Pod must not already be delegated
     * @dev Updates pod-to-app mapping and emits PodDelegated event
      */
-    function delegatePod(address pod, address appContract) external whenNotPaused nonReentrant {
-        require(_userToPod[msg.sender] == pod, "Not the pod owner");
+    function delegatePod(address pod, address appContract, uint256 shares) external whenNotPaused nonReentrant onlyPodOwner(pod) {
         require(IAppRegistry(_appRegistry).isAppRegistered(appContract), "Invalid app contract");
-        require(_podToApp[pod] == address(0), "Pod already delegated");
-        // set the pod to app mapping
-        _setPodApp(pod, appContract);
-        emit PodDelegated(pod, appContract);
+        require(shares > 0, "Shares must be greater than zero");
+
+        // Calculate total shares already allocated
+        uint256 totalAllocatedShares = 0;
+        for (uint256 i = 0; i < _podToApps[pod].length; i++) {
+            totalAllocatedShares += _podToAppShares[pod][_podToApps[pod][i]];
+        }
+
+        // Ensure total shares do not exceed the maximum (e.g., 100 shares for 1 BTC)
+        uint256 maxShares = IBitcoinPod(pod).getBitcoinBalance() * 100; // Assuming 1 BTC = 100 shares
+        require(totalAllocatedShares + shares <= maxShares, "Exceeds total available shares");
+
+        // Allocate shares to the app
+        _podToAppShares[pod][appContract] += shares;
+        if (!_isAppDelegatedToPod(pod, appContract)) {
+            _podToApps[pod].push(appContract);
+        }
+        emit SharesAllocated(pod, appContract, shares);
     }
 
     /**
@@ -439,5 +452,17 @@ contract BitcoinPodManager is
      */
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    function allocateShares(address pod, address appContract, uint256 shares) external whenNotPaused nonReentrant onlyPodOwner(pod) {
+        require(IAppRegistry(_appRegistry).isAppRegistered(appContract), "Invalid app contract");
+        require(shares > 0, "Shares must be greater than zero");
+        
+        _podToAppShares[pod][appContract] += shares;
+        emit SharesAllocated(pod, appContract, shares);
+    }
+
+    function getShares(address pod, address appContract) external view returns (uint256) {
+        return _podToAppShares[pod][appContract];
     }
 }
