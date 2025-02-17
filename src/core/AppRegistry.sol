@@ -25,31 +25,42 @@ import "../libraries/EIP1271SignatureUtils.sol";
  * - Owner-only deregistration
  * - Circuit breaker (pause) functionality
  */
-
-contract AppRegistry is 
-    IAppRegistry, 
-    Initializable, 
-    OwnableUpgradeable, 
-    PausableUpgradeable, 
-    ReentrancyGuardUpgradeable 
+contract AppRegistry is
+    IAppRegistry,
+    Initializable,
+    OwnableUpgradeable,
+    PausableUpgradeable,
+    ReentrancyGuardUpgradeable
 {
-    
+    // @notice total number of apps registered
+    uint256 public totalAppsRegistered;
     // @notice Mapping of app address to registration status
     mapping(address => AppRegistrationStatus) public appStatus;
     // @notice Mapping of app address and salt to usage status
     mapping(address => mapping(bytes32 => bool)) public appSaltIsSpent;
     // @notice EIP-712 typehash for app registration
-    bytes32 private constant APP_REGISTRATION_TYPEHASH = keccak256("AppRegistration(address app,address appRegistry, bytes32 salt,uint256 expiry)");
+    bytes32 private constant APP_REGISTRATION_TYPEHASH =
+        keccak256("AppRegistration(address app,address appRegistry, bytes32 salt,uint256 expiry)");
     // @notice EIP-712 typehash for domain separator
-    bytes32 private constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+    bytes32 private constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
     // @notice Unique domain separator for this contract instance
-    bytes32 private immutable DOMAIN_SEPARATOR;
-
+    bytes32 private DOMAIN_SEPARATOR;
+    /**
+     * @notice Maximum length for metadata URI
+     */
+    uint256 constant MAX_METADATA_URI_LENGTH = 2048;
+    /**
+     * @notice Minimum time before expiry (1 hour)
+     */
+    uint256 constant MIN_EXPIRY_DURATION = 5 minutes;
     /**
      * @notice Constructor to initialize the domain separator
      */
+
     constructor() {
-        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("BitDSM")), block.chainid, address(this)));
+        DOMAIN_SEPARATOR =
+            keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("BitDSM")), block.chainid, address(this)));
     }
 
     /**
@@ -65,6 +76,7 @@ contract AppRegistry is
         __Pausable_init();
         __ReentrancyGuard_init();
         transferOwnership(initialOwner);
+        totalAppsRegistered = 0;
     }
 
     /**
@@ -76,15 +88,16 @@ contract AppRegistry is
      * - Updates the app's registration status
      * - Emits an AppRegistrationStatusUpdated event
      */
-    function registerApp(address app, bytes memory signature, bytes32 salt, uint256 expiry) 
-        external 
-        override 
-        whenNotPaused 
-        nonReentrant 
+    function registerApp(address app, bytes memory signature, bytes32 salt, uint256 expiry)
+        external
+        override
+        whenNotPaused
+        nonReentrant
     {
-        require(expiry >= block.timestamp, "AppRegistry: signature expired");
-        require(appStatus[app] == AppRegistrationStatus.UNREGISTERED, "AppRegistry: app already registered");
-        require(!appSaltIsSpent[app][salt], "AppRegistry: salt already spent");
+        if (app == address(0)) revert ZeroAddress();
+        if (expiry < block.timestamp + MIN_EXPIRY_DURATION) revert SignatureExpired();
+        if (appStatus[app] != AppRegistrationStatus.UNREGISTERED) revert AppAlreadyRegistered();
+        if (appSaltIsSpent[app][salt]) revert SaltAlreadySpent();
 
         bytes32 digestHash = calculateAppRegistrationDigestHash(app, address(this), salt, expiry);
 
@@ -92,7 +105,7 @@ contract AppRegistry is
 
         appStatus[app] = AppRegistrationStatus.REGISTERED;
         appSaltIsSpent[app][salt] = true;
-
+        totalAppsRegistered++;
         emit AppRegistrationStatusUpdated(app, AppRegistrationStatus.REGISTERED);
     }
 
@@ -103,16 +116,11 @@ contract AppRegistry is
      * - Updates the app's registration status
      * - Emits an AppRegistrationStatusUpdated event
      */
-    function deregisterApp(address app) 
-        external 
-        override 
-        onlyOwner 
-        whenNotPaused 
-    {
-        require(appStatus[app] == AppRegistrationStatus.REGISTERED, "AppRegistry: app not registered");
+    function deregisterApp(address app) external override onlyOwner whenNotPaused {
+        if (appStatus[app] != AppRegistrationStatus.REGISTERED) revert AppNotRegistered();
 
         appStatus[app] = AppRegistrationStatus.UNREGISTERED;
-
+        totalAppsRegistered--;
         emit AppRegistrationStatusUpdated(app, AppRegistrationStatus.UNREGISTERED);
     }
 
@@ -120,6 +128,7 @@ contract AppRegistry is
      * @inheritdoc IAppRegistry
      */
     function isAppRegistered(address app) external view override returns (bool) {
+        if (app == address(0)) revert ZeroAddress();
         return appStatus[app] == AppRegistrationStatus.REGISTERED;
     }
 
@@ -130,8 +139,9 @@ contract AppRegistry is
      * - Updates the salt's usage status
      */
     function cancelSalt(bytes32 salt) external override {
-        require(!appSaltIsSpent[msg.sender][salt], "AppRegistry: cannot cancel spent salt");
+        if (appSaltIsSpent[msg.sender][salt]) revert SaltAlreadySpent();
         appSaltIsSpent[msg.sender][salt] = true;
+        emit SaltCancelled(msg.sender, salt);
     }
 
     /**
@@ -141,16 +151,23 @@ contract AppRegistry is
      * - Emits an AppMetadataURIUpdated event
      */
     function updateAppMetadataURI(string calldata metadataURI) external override {
-        require(appStatus[msg.sender] == AppRegistrationStatus.REGISTERED, "AppRegistry: app not registered");
+        if (appStatus[msg.sender] != AppRegistrationStatus.REGISTERED) revert AppNotRegistered();
+        if (bytes(metadataURI).length > MAX_METADATA_URI_LENGTH) revert InvalidMetadataURILength();
+        if (bytes(metadataURI).length == 0) revert InvalidMetadataURILength();
         emit AppMetadataURIUpdated(msg.sender, metadataURI);
     }
     // @inheritdoc IAppRegistry
-    function calculateAppRegistrationDigestHash(
-        address app,
-        address appRegistry,
-        bytes32 salt,
-        uint256 expiry
-    ) public view override returns (bytes32) {
+
+    function calculateAppRegistrationDigestHash(address app, address appRegistry, bytes32 salt, uint256 expiry)
+        public
+        view
+        override
+        returns (bytes32)
+    {
+        // check if appRegistry is not zero address
+        if (appRegistry == address(0)) revert ZeroAddress();
+        if (app == address(0)) revert ZeroAddress();
+
         bytes32 structHash = keccak256(abi.encode(APP_REGISTRATION_TYPEHASH, app, appRegistry, salt, expiry));
         return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
     }
@@ -173,5 +190,24 @@ contract AppRegistry is
      */
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    /**
+     * @inheritdoc IAppRegistry
+     * @dev This function performs the following:
+     * - Validates that the app is registered
+     * - Emits an AppMetadataURIUpdated event
+     */
+    function isSaltCancelled(address app, bytes32 salt) external view override returns (bool) {
+        if (appStatus[app] != AppRegistrationStatus.REGISTERED) revert AppNotRegistered();
+        return appSaltIsSpent[app][salt];
+    }
+
+    function getVersion() external pure override returns (string memory) {
+        return "1.0.0";
+    }
+
+    function getTotalAppsRegistered() external view returns (uint256) {
+        return totalAppsRegistered;
     }
 }
