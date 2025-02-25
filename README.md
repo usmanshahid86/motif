@@ -1,10 +1,32 @@
-## BitDSM : Bitcoin Delegated Staking Mechanism
+# Motif Rebranding Announcement
 
-![Bitcoin Abstract Cover](./assets/cover.jpeg)
+We are excited to share that BitDSM has officially rebranded to Motif! This change reflects our evolving mission to empower BTC liquidity providers and DeFi innovators through cutting-edge strategies and Distributed Traded Products (DTPs).
 
-**BitDSM brings native Bitcoin delegation to ethereum applications.**
+## 🔥 What’s New
 
-The BitcoinPod (BOD) is the core component of BitDSM, modeled after the EigenPod concept. A BOD is a non-custodial vault on the Bitcoin network, created using a P2WSH bitcoin address. The primary objective of the BitcoinPod is to ensure that a smart contract can slash the BOD for predetermined conditions for the value already held in the BitcoinPod or set to be processed through it.
+- Organization Name: BitDSM → Motif
+
+- Repositories: All existing repositories have been renamed accordingly.
+
+- Mission: We're focusing on enabling BTC-backed yield strategies, Bitcoin Pods, and cross-chain interoperability.
+
+## ⚡Important Links
+
+- Main Repo: Motif
+
+- Docs: Motif-docs
+
+- Website: [Insert website link]
+
+We appreciate your support and look forward to building the future of BTC liquidity together!
+
+The Motif Team
+
+![Bitcoin Abstract Cover](./assets/og_image.png)
+
+**Motif brings native Bitcoin delegation to ethereum applications.**
+
+The BitcoinPod (BOD) is the core component of Motif, modeled after the EigenPod concept. A BOD is a non-custodial vault on the Bitcoin network, created using a P2WSH bitcoin address. The primary objective of the BitcoinPod is to ensure that a smart contract can slash the BOD for predetermined conditions for the value already held in the BitcoinPod or set to be processed through it.
 
 To accomplish this, BOD:
 
@@ -25,9 +47,9 @@ BOD is not a bridge nor does it mint any ERC-20. It is merely a way to delegate 
 
 BitcoinPods are bootstrapped using restaked security available to the AVS of Eigenlayer. BitcoinPods can be issued by operator sets with predetermined independent tasks, and can be secured either by an insurance built using BitDSM or with LRTs on Ethereum.
 
-Front end link: https://bitdsm.vercel.app/
+Front end link: https://motif.finance
 
-You can find the [BitDSM examples here](https://github.com/BitDSM/BitDSM-examples).
+You can find the [Motif sample applications here]().
 
 ## Usage
 
